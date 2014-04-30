@@ -1,0 +1,9 @@
+AUTOMAKE_OPTIONS = foreign subdir-objects
+
+bin_PROGRAMS = esip
+AM_CPPFLAGS = -g -Wall 
+AM_CFLAGS = -g -Wall -O
+
+esip_SOURCES = esip.c sip/estransport.c sip/esosip.c
+esip_LDADD =  $(OSIP2_LIBS) $(LIBEVENT_LIBS)
+esip_CFLAGS = $(OSIP2_CFLAGS) $(LIBEVENT_CFLAGS)
