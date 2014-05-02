@@ -119,11 +119,14 @@ es_status es_osip_init(OUT es_osip_t **_ctx, struct event_base *base)
 	/* list of pending event */
 	if (osip_list_init(&ctx->pendingEv) != OSIP_SUCCESS) {
 		ESIP_TRACE(ESIP_LOG_ERROR, "List for pending event initialization failed");
+		free(ctx->osip);
+		free(ctx);
 		return ES_ERROR_OUTOFRESOURCES;
 	}
 
 	/* Set internal OSip Callback */
 	if ((ret = _es_osip_set_internal_callbacks(ctx)) != ES_OK) {
+		free(ctx->osip);
 		free(ctx);
 		return ret;
 	}
@@ -159,9 +162,6 @@ es_status es_osip_parse_msg(IN es_osip_t *_ctx, const char *buf, unsigned int si
 		return ES_ERROR_NETWORK_PROBLEM;
 	}
 
-	/* TODO: Chekc message type  and send it to responsable module */
-
-	/* Assume it's INVITE Look for existant OSip Transaction */
 	if (osip_find_transaction_and_add_event(ctx->osip, evt) != OSIP_SUCCESS) {
 		ESIP_TRACE(ESIP_LOG_INFO, "New transaction");
 		osip_transaction_t *tr = NULL;
@@ -382,10 +382,10 @@ static es_status _es_tools_build_response(
 	}
 
 	/* Set From header */
-	osip_from_clone(req->from, &msg->from);
+	osip_from_clone(req->to, &msg->from);
 
 	/* Set To header */
-	osip_to_clone(req->to, &msg->to);
+	osip_to_clone(req->from, &msg->to);
 	random_tag = osip_build_random_number();
 	snprintf(str_random, sizeof(str_random), "%d", random_tag);
 	osip_to_set_tag(msg->to, osip_strdup(str_random));
@@ -445,6 +445,8 @@ static int _es_internal_send_msg_cb(
 
 	es_transport_send(ctx->transportCtx, addr, port, buf, buf_len);
 
+	free(buf);
+
 	return OSIP_SUCCESS;
 }
 
@@ -496,6 +498,7 @@ static void _es_internal_message_cb(int type, osip_transaction_t *tr, osip_messa
 			break;
 		case OSIP_NIST_REGISTER_RECEIVED:
 			{
+				/* TODO: Send it to REGISTRAR module */
 				ESIP_TRACE(ESIP_LOG_INFO,"OSIP_NIST_REGISTER_RECEIVED");
 
 				osip_message_set_status_code(response, SIP_OK);
