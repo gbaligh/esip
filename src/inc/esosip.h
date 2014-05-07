@@ -28,9 +28,9 @@ extern "C" {
 
 typedef struct es_osip_s es_osip_t;
 
-es_status es_osip_init(OUT es_osip_t **ctx, struct event_base *base);
+es_status es_osip_init(OUT es_osip_t ** ctx, struct event_base * base);
 
-es_status es_osip_parse_msg(IN es_osip_t *ctx, const char *buf, unsigned int size);
+es_status es_osip_parse_msg(IN es_osip_t * ctx, const char * buf, unsigned int size);
 
 #if defined(__cplusplus)
 }

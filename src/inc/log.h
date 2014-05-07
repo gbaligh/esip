@@ -19,19 +19,34 @@
 #define _ESIP_LOG_H_
 
 /** LOGGING LEVELS */
-#define ESIP_LOG_EMERG		0
-#define ESIP_LOG_ALERT		1
-#define ESIP_LOG_CRIT		2
-#define ESIP_LOG_ERROR		3
-#define ESIP_LOG_WARNING	4
-#define ESIP_LOG_NOTICE		5
-#define ESIP_LOG_INFO		6
-#define ESIP_LOG_DEBUG		7
+#define ESIP_LOG_EMERG    0
+#define ESIP_LOG_ALERT    1
+#define ESIP_LOG_CRIT     2
+#define ESIP_LOG_ERROR    3
+#define ESIP_LOG_WARNING  4
+#define ESIP_LOG_NOTICE   5
+#define ESIP_LOG_INFO     6
+#define ESIP_LOG_DEBUG    7
+
+
+#define ES_EMERG(msg, ...) \
+  do { \
+    printf("[%s][EMERGENCY]- " msg "\r\n", PACKAGE, ##__VA_ARGS__); \
+  } while(0)
+
+#define ES_ALERT(msg, ...) \
+  do { \
+    printf("[%s][ALERT]- " msg "\r\n", PACKAGE, ##__VA_ARGS__); \
+  } while(0)
 
 /** */
-#define ESIP_TRACE(level, msg, ...)	\
-	do { \
-		printf("[%s] %s(%d) - " msg "\r\n", PACKAGE, __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__); \
-	} while(0)
+#define ESIP_TRACE(level, msg, ...) \
+  do { \
+	if (level > ESIP_LOG_INFO) { \
+      printf("[%s]- [%s(%d)]- " msg "\r\n", PACKAGE, __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__); \
+	} else { \
+	  printf("[%s]- " msg "\r\n", PACKAGE, ##__VA_ARGS__); \
+	} \
+  } while(0)
 
 #endif /* _ESIP_LOG_H_ */

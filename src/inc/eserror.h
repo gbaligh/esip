@@ -33,7 +33,7 @@ typedef int es_status;
 #define ES_ERROR_DESTRUCTED -6              /* operation attempted on a destructed object */
 #define ES_ERROR_NOTSUPPORTED -7            /* request not supported under current configuration */
 #define ES_ERROR_UNINITIALIZED -8           /* object uninitialized */
-#define ES_ERROR_TRY_AGAIN -9	              /* incomplete operation, used by semaphore's try lock */
+#define ES_ERROR_TRY_AGAIN -9               /* incomplete operation, used by semaphore's try lock */
 #define ES_ERROR_ILLEGAL_ACTION -10         /* the requested action is illegal */
 #define ES_ERROR_NETWORK_PROBLEM -11        /* action failed due to network problems */
 #define ES_ERROR_INVALID_HANDLE -12         /* a handle passed to a function is illegal */
