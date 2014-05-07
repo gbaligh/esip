@@ -8,7 +8,7 @@
 #include <CUnit/Basic.h>
 
 
-extern CU_SuiteInfo    osip_tests_suites[]; 
+extern CU_SuiteInfo    osip_tests_suites[];
 
 extern CU_SuiteInfo    ev_tests_suites[];
 
@@ -18,25 +18,28 @@ extern CU_SuiteInfo    ev_tests_suites[];
  *
  * @return 0 in success, or positive value for erreur.
  */
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
-	CU_pSuite       pSuite = NULL;
-	int             i = 0;
+  CU_pSuite       pSuite = NULL;
+  int             i = 0;
 
-	/* initialize the CUnit test registry */
-	if (CUE_SUCCESS != CU_initialize_registry())
-		return CU_get_error();
+  /* initialize the CUnit test registry */
+  if (CUE_SUCCESS != CU_initialize_registry()) {
+    return CU_get_error();
+  }
 
-	if (CUE_SUCCESS != CU_register_suites(osip_tests_suites))
-		return CU_get_error();
+  if (CUE_SUCCESS != CU_register_suites(osip_tests_suites)) {
+    return CU_get_error();
+  }
 
-	if (CUE_SUCCESS != CU_register_suites(ev_tests_suites))
-		return CU_get_error();
+  if (CUE_SUCCESS != CU_register_suites(ev_tests_suites)) {
+    return CU_get_error();
+  }
 
-	/* Run all tests using the CUnit Basic interface */
-	CU_basic_set_mode(CU_BRM_VERBOSE);
+  /* Run all tests using the CUnit Basic interface */
+  CU_basic_set_mode(CU_BRM_VERBOSE);
 
-	CU_basic_run_tests();
-	CU_cleanup_registry();
-	return CU_get_error();
+  CU_basic_run_tests();
+  CU_cleanup_registry();
+  return CU_get_error();
 }

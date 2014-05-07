@@ -36,95 +36,93 @@
 #include "esosip.h"
 
 typedef struct app_s {
-	struct event_config *cfg;
-	struct event_base *base;
-	struct event *evsig;
+  struct event_config * cfg;
+  struct event_base * base;
+  struct event * evsig;
 
-	/* osip stack */
-	es_osip_t *osipCtx;
+  /* osip stack */
+  es_osip_t * osipCtx;
 } app_t;
 
-static void log_cb(
-		int severity, 
-		const char *msg)
+static void libevent_log_cb(int severity, const char * msg)
 {
-	ESIP_TRACE(ESIP_LOG_DEBUG, "%s", msg);
+  ESIP_TRACE(ESIP_LOG_INFO, "[libevent]- %s", msg);
 }
 
-static void signal_cb(
-		evutil_socket_t fd, 
-		short event, 
-		void *arg)
+static void signal_cb(evutil_socket_t fd, short event, void * arg)
 {
-	app_t *ctx = (app_t *)arg;
-	ESIP_TRACE(ESIP_LOG_INFO, "Terminate %s", PACKAGE);
-	(void)event_base_loopexit(ctx->base, NULL);
+  app_t * ctx = (app_t *)arg;
+  ESIP_TRACE(ESIP_LOG_INFO, "Terminate %s", PACKAGE);
+  (void)event_base_loopexit(ctx->base, NULL);
+
+  /* TODO: free all allocated mem */
+  //free(ctx);
 }
 
-int main(const int argc, const char *argv[])
+int main(const int argc, const char * argv[])
 {
-	app_t ctx;
-	int ret = EXIT_SUCCESS;
+  app_t ctx;
+  int ret = EXIT_SUCCESS;
 
-	ESIP_TRACE(ESIP_LOG_INFO, "Starting %s v%s", PACKAGE, VERSION);
+  ESIP_TRACE(ESIP_LOG_INFO, "Starting %s v%s", PACKAGE, VERSION);
 
-	event_set_log_callback(log_cb);
+  event_set_log_callback(libevent_log_cb);
 
-	//event_enable_debug_logging(0xffffffffu);
+  //event_enable_debug_logging(0xffffffffu);
 
-	ctx.cfg = event_config_new();
-	if (event_config_avoid_method(ctx.cfg, "select") != 0) {
-		ESIP_TRACE(ESIP_LOG_ERROR, "Can not avoid select methode");
-	}
+  ctx.cfg = event_config_new();
+  if (event_config_avoid_method(ctx.cfg, "select") != 0) {
+    ESIP_TRACE(ESIP_LOG_ERROR, "Can not avoid select methode");
+  }
 
-	ctx.base = event_base_new_with_config(ctx.cfg);
-	if (ctx.base == NULL) {
-		ESIP_TRACE(ESIP_LOG_ERROR, "Can not create event Config");
-		goto ERROR_EXIT;
-	}
+  ctx.base = event_base_new_with_config(ctx.cfg);
+  if (ctx.base == NULL) {
+    ESIP_TRACE(ESIP_LOG_ERROR, "Can not create event Config");
+    goto ERROR_EXIT;
+  }
 
-	/* free cfg */
-	event_config_free(ctx.cfg);
-	ctx.cfg = NULL;
+  /* free cfg */
+  event_config_free(ctx.cfg);
+  ctx.cfg = NULL;
 
-	/* Set MAX priority */
-	if (event_base_priority_init(ctx.base, 2) != 0) {
-		ESIP_TRACE(ESIP_LOG_ERROR, "Can not set MAX priority in event loop");
-	}
+  /* Set MAX priority */
+  if (event_base_priority_init(ctx.base, 2) != 0) {
+    ESIP_TRACE(ESIP_LOG_ERROR, "Can not set MAX priority in event loop");
+  }
 
-	ctx.evsig = evsignal_new(ctx.base, SIGINT, &signal_cb, (void *)&ctx);
-	if (ctx.evsig == NULL) {
-		ESIP_TRACE(ESIP_LOG_ERROR, "Can not create event for signal");
-		goto ERROR_EXIT;
-	}
+  ctx.evsig = evsignal_new(ctx.base, SIGINT, &signal_cb, (void *)&ctx);
+  if (ctx.evsig == NULL) {
+    ESIP_TRACE(ESIP_LOG_ERROR, "Can not create event for signal");
+    goto ERROR_EXIT;
+  }
 
-	if (evsignal_add(ctx.evsig, NULL) != 0) {
-		ESIP_TRACE(ESIP_LOG_ERROR, "Can not make Signal event pending");
-		goto ERROR_EXIT;
-	}
+  if (evsignal_add(ctx.evsig, NULL) != 0) {
+    ESIP_TRACE(ESIP_LOG_ERROR, "Can not make Signal event pending");
+    goto ERROR_EXIT;
+  }
 
-	/* Init OSip Stack */
-	if (es_osip_init(&ctx.osipCtx, ctx.base) != ES_OK) {
-		ESIP_TRACE(ESIP_LOG_ERROR, "Can not initialize OSip stack");
-		goto ERROR_EXIT;
-	}
+  /* Init OSip Stack */
+  if (es_osip_init(&ctx.osipCtx, ctx.base) != ES_OK) {
+    ESIP_TRACE(ESIP_LOG_ERROR, "Can not initialize OSip stack");
+    goto ERROR_EXIT;
+  }
 
-	ESIP_TRACE(ESIP_LOG_DEBUG, "Starting %s v%s main loop", PACKAGE, VERSION);
-	if (event_base_dispatch(ctx.base) != 0) {
-		ESIP_TRACE(ESIP_LOG_EMERG, "Can not start main event lopp");
-		goto ERROR_EXIT; 
-	}
+  ESIP_TRACE(ESIP_LOG_DEBUG, "Starting %s v%s main loop", PACKAGE, VERSION);
+  if (event_base_dispatch(ctx.base) != 0) {
+    ESIP_TRACE(ESIP_LOG_EMERG, "Can not start main event lopp");
+    goto ERROR_EXIT;
+  }
 
-	goto EXIT;
+  goto EXIT;
 
 ERROR_EXIT:
-	ESIP_TRACE(ESIP_LOG_EMERG, "%s fatal error: stoped.", PACKAGE);
-	ret = EXIT_FAILURE;
+  ESIP_TRACE(ESIP_LOG_EMERG, "%s fatal error: stoped.", PACKAGE);
+  ret = EXIT_FAILURE;
 
 EXIT:
-	event_free(ctx.evsig);
-	event_base_free(ctx.base);
+  event_free(ctx.evsig);
+  event_base_free(ctx.base);
 
-	//libevent_global_shutdown();
-	return ret;
+  //libevent_global_shutdown();
+  return ret;
 }
