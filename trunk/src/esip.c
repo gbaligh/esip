@@ -20,19 +20,12 @@
 #endif
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/types.h>
 
 #include <event2/event.h>
 #include <event2/util.h>
 
 #include "eserror.h"
 #include "log.h"
-
 #include "esosip.h"
 
 typedef struct app_s {

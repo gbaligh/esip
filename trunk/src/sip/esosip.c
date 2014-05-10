@@ -192,12 +192,12 @@ es_status es_osip_parse_msg(IN es_osip_t * _ctx, IN const char * buf, IN unsigne
   }
 
   ESIP_TRACE(ESIP_LOG_INFO,"received SIP type %s:%s",
-    (MSG_IS_REQUEST(evt->sip))? "REQ" : "RES",
-	(MSG_IS_REQUEST(evt->sip) ?
-	((evt->sip->sip_method)?
-	evt->sip->sip_method : "NULL") :
-	((evt->sip->reason_phrase) ? 
-	evt->sip->reason_phrase : "NULL")));
+             (MSG_IS_REQUEST(evt->sip))? "REQ" : "RES",
+             (MSG_IS_REQUEST(evt->sip) ?
+              ((evt->sip->sip_method)?
+               evt->sip->sip_method : "NULL") :
+              ((evt->sip->reason_phrase) ?
+               evt->sip->reason_phrase : "NULL")));
 
   if (osip_find_transaction_and_add_event(ctx->osip, evt) != OSIP_SUCCESS) {
     ESIP_TRACE(ESIP_LOG_INFO, "New transaction");
@@ -280,7 +280,7 @@ static void _es_transport_msg_cb(
 
   if (size < 3) {
     ESIP_TRACE(ESIP_LOG_WARNING, "Message length [%d] can not be right !", size);
-  } 
+  }
 
   ESIP_TRACE(ESIP_LOG_DEBUG, "Received:\n<=====\n%s\n<=====", msg);
 
@@ -505,7 +505,7 @@ static void _es_internal_kill_transaction_cb(int type, osip_transaction_t * tr)
 
   ctx = osip_transaction_get_your_instance(tr);
   if (ctx != NULL) {
-	/* TODO: Check magic */
+    /* TODO: Check magic */
     if (osip_remove_transaction (ctx->osip, tr) != OSIP_SUCCESS) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Remove Transaction %p failed", tr);
     }
@@ -592,17 +592,17 @@ static es_status _es_osip_set_internal_callbacks(struct es_osip_s * ctx)
 
   // callback called when a SIP transaction is TERMINATED.
   for (i = 0; i < OSIP_KILL_CALLBACK_COUNT; ++i) {
-  	osip_set_kill_transaction_callback(osip, i, &_es_internal_kill_transaction_cb);
+    osip_set_kill_transaction_callback(osip, i, &_es_internal_kill_transaction_cb);
   }
 
   // callback called when the callback to send message have failed.
   for (i = 0; i < OSIP_TRANSPORT_ERROR_CALLBACK_COUNT; ++i) {
-  	osip_set_transport_error_callback(osip, i, &_es_internal_transport_error_cb);
+    osip_set_transport_error_callback(osip, i, &_es_internal_transport_error_cb);
   }
 
   // Message callbacks.
   for (i = 0; i < OSIP_MESSAGE_CALLBACK_COUNT; ++i) {
-  	osip_set_message_callback(osip, i, &_es_internal_message_cb);
+    osip_set_message_callback(osip, i, &_es_internal_message_cb);
   }
 
   return ES_OK;
