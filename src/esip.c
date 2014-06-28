@@ -28,13 +28,15 @@
 #include "log.h"
 #include "esosip.h"
 
+/**
+ * @brief 
+ */
 typedef struct app_s {
-  struct event_config * cfg;
-  struct event_base * base;
-  struct event * evsig;
-
-  /* osip stack */
-  es_osip_t * osipCtx;
+  struct event_config * cfg;  //!< LibEvent configuration
+  struct event_base * base;   //!< LibEvent Base loop
+  struct event * evsig;       //!< LibEvent Signal 
+  es_log_t * logger;          //!< Logger handler
+  es_osip_t * osipCtx;        //!< OSip stack context
 } app_t;
 
 static void libevent_log_cb(int severity, const char * msg)
@@ -49,7 +51,6 @@ static void signal_cb(evutil_socket_t fd, short event, void * arg)
   (void)event_base_loopexit(ctx->base, NULL);
 
   /* TODO: free all allocated mem */
-  //free(ctx);
 }
 
 int main(const int argc, const char * argv[])
@@ -60,8 +61,6 @@ int main(const int argc, const char * argv[])
   ESIP_TRACE(ESIP_LOG_INFO, "Starting %s v%s", PACKAGE, VERSION);
 
   event_set_log_callback(libevent_log_cb);
-
-  //event_enable_debug_logging(0xffffffffu);
 
   ctx.cfg = event_config_new();
   if (event_config_avoid_method(ctx.cfg, "select") != 0) {
@@ -116,6 +115,7 @@ EXIT:
   event_free(ctx.evsig);
   event_base_free(ctx.base);
 
-  //libevent_global_shutdown();
   return ret;
 }
+
+// vim: noai:ts=2:sw=2

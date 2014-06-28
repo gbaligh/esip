@@ -37,7 +37,11 @@
 #include "estransport.h"
 #include "esosip.h"
 
+#define ES_OSIP_MAGIC		0X20140607
+
 struct es_osip_s {
+	/* Magic */
+	uint32_t	magic;
   /* OSip */
   osip_t    *    osip;
   /* Transport Layer */
@@ -58,10 +62,10 @@ struct es_osip_s {
  * @note Internal use
  */
 static void _es_transport_event_cb(
-  IN es_transport_t  * transp,
-  IN int        event,
-  IN int        error,
-  IN void    *   data);
+  es_transport_t  * transp,
+  int        event,
+  int        error,
+  void    *   data);
 
 /**
  * @brief Transport layer new msg callback
@@ -69,17 +73,17 @@ static void _es_transport_event_cb(
  * @note Internal use
  */
 static void _es_transport_msg_cb(
-  IN es_transport_t   *   transp,
-  IN const char const  * msg,
-  IN const unsigned int   size,
-  OUT void    *    data);
+  es_transport_t   *   transp,
+  const char const  * msg,
+  const unsigned int   size,
+  void    *    data);
 
 /**
  * @brief Set OSip stack callbacks to internal ones
  * @return ES_OK on success
  */
 static es_status _es_osip_set_internal_callbacks(
-  IN struct es_osip_s * _ctx);
+  struct es_osip_s * _ctx);
 
 /**
  * @brief ESip Event sender
@@ -88,14 +92,14 @@ static es_status _es_osip_set_internal_callbacks(
  *
  * @return ES_OK on success
  */
-static es_status _es_send_event(
-  IN struct es_osip_s * ctx);
+static es_status _es_osip_wakeup(
+  struct es_osip_s * ctx);
 
 /*******************************************************************************
                         Public functions implementation
  ******************************************************************************/
 
-es_status es_osip_init(OUT es_osip_t ** _ctx, IN struct event_base * base)
+es_status es_osip_init(es_osip_t ** _ctx, struct event_base * base)
 {
   es_status ret = ES_OK;
   struct es_osip_s * ctx = (struct es_osip_s *) malloc(sizeof(struct es_osip_s));
@@ -105,7 +109,7 @@ es_status es_osip_init(OUT es_osip_t ** _ctx, IN struct event_base * base)
   }
 
   /* Set Magic */
-  /* TODO */
+  ctx->magic = ES_OSIP_MAGIC;
 
   /* Init Transport Layer */
   ret = es_transport_init(&ctx->transportCtx, base);
@@ -182,7 +186,10 @@ es_status es_osip_parse_msg(IN es_osip_t * _ctx, IN const char * buf, IN unsigne
   }
 
   /* Check Context magic */
-  /* TODO */
+  if (ctx->magic != ES_OSIP_MAGIC) {
+		ESIP_TRACE(ESIP_LOG_ERROR, "SIP ctx is not valid");
+		return ES_ERROR_NULLPTR;
+	}
 
   /* Parse buffer and check if it's really a SIP Message */
   evt = osip_parse(buf, size);
@@ -232,7 +239,7 @@ es_status es_osip_parse_msg(IN es_osip_t * _ctx, IN const char * buf, IN unsigne
     /* Set context reference into Transaction struct */
     osip_transaction_set_your_instance(tr, (void *)ctx);
 
-    /* add a new OSip event into Fifo list */
+    /* add a new OSip event into FiFo list */
     if (osip_transaction_add_event(tr, evt)) {
       ESIP_TRACE(ESIP_LOG_ERROR, "adding event failed");
       free(evt);
@@ -241,7 +248,7 @@ es_status es_osip_parse_msg(IN es_osip_t * _ctx, IN const char * buf, IN unsigne
   }
 
   /* Send notification using event for the transaction */
-  if (_es_send_event(ctx) != ES_OK) {
+  if (_es_osip_wakeup(ctx) != ES_OK) {
     ESIP_TRACE(ESIP_LOG_ERROR, "sending event failed");
     free(evt);
     return ES_ERROR_UNKNOWN;
@@ -257,19 +264,19 @@ es_status es_osip_parse_msg(IN es_osip_t * _ctx, IN const char * buf, IN unsigne
  ******************************************************************************/
 
 static void _es_transport_event_cb(
-  IN es_transport_t  * transp,
-  IN int        event,
-  IN int        error,
-  IN void    *   data)
+  es_transport_t  * transp,
+  int        event,
+  int        error,
+  void    *   data)
 {
   ESIP_TRACE(ESIP_LOG_DEBUG, "Event: %d", event);
 }
 
 static void _es_transport_msg_cb(
-  IN es_transport_t   *   transp,
-  IN const char const  * msg,
-  IN const unsigned int   size,
-  OUT void    *    data)
+  es_transport_t   *   transp,
+  const char const  * msg,
+  const unsigned int   size,
+  void    *    data)
 {
   struct es_osip_s * ctx = (struct es_osip_s *)data;
 
@@ -349,7 +356,7 @@ static void _es_osip_loop(evutil_socket_t fd, short event, void * arg)
   }
 }
 
-static es_status _es_send_event(struct es_osip_s * ctx)
+static es_status _es_osip_wakeup(struct es_osip_s * ctx)
 {
   struct event * evsip = NULL;
 
@@ -390,9 +397,9 @@ static es_status _es_send_event(struct es_osip_s * ctx)
 }
 
 static es_status _es_tools_build_response(
-  IN osip_message_t * req,
-  IN const unsigned int code,
-  OUT osip_message_t ** resp)
+  osip_message_t * req,
+  const unsigned int code,
+  osip_message_t ** resp)
 {
   osip_message_t * msg = NULL;
   unsigned int random_tag = 0;
@@ -480,7 +487,11 @@ static int _es_internal_send_msg_cb(
     return -1;
   }
 
-  /* TODO: Check magic */
+  /* Check magic */
+	if (ctx->magic != ES_OSIP_MAGIC) {
+		 ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
+		 return -1;
+	}
 
   osip_message_to_str(msg, &buf, &buf_len);
 
@@ -526,7 +537,11 @@ static void _es_internal_message_cb(int type, osip_transaction_t * tr, osip_mess
     return;
   }
 
-  /* TODO: Check magic */
+  /* Check magic */
+	if (ctx->magic != ES_OSIP_MAGIC) {
+		ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
+		return;
+	}
 
   if (_es_tools_build_response(msg, 0, &response) != ES_OK) {
     ESIP_TRACE(ESIP_LOG_ERROR, "Creating Response failed");
@@ -561,7 +576,7 @@ static void _es_internal_message_cb(int type, osip_transaction_t * tr, osip_mess
   osip_transaction_add_event(tr, evt);
 
   /* Send notification using event for the transaction */
-  if (_es_send_event(ctx) != ES_OK) {
+  if (_es_osip_wakeup(ctx) != ES_OK) {
     ESIP_TRACE(ESIP_LOG_ERROR, "sending event failed");
     free(evt);
     return;
@@ -608,3 +623,4 @@ static es_status _es_osip_set_internal_callbacks(struct es_osip_s * ctx)
   return ES_OK;
 }
 
+// vim: ts=2:sw=2
