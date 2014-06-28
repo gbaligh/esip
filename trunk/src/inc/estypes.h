@@ -40,7 +40,11 @@ extern "C" {
 #define ES_MIN(_a, _b) (((_a) < (_b) ? (_a) : (_b)))
 #define ES_MAX(_a, _b) (((_a) > (_b) ? (_a) : (_b)))
 
-#define ES_UNSED_ARG(_arg) (void)(_arg);
+#ifdef __GNUC__
+# define UNUSED(d) d __attribute__ ((unused))
+#else
+# define UNUSED(d) d
+#endif
 
 #define IN
 #define OUT
