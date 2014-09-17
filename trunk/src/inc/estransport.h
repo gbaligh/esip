@@ -29,22 +29,22 @@ extern "C" {
 typedef struct es_transport_s es_transport_t;
 
 typedef void (*es_transport_event_cb)(
-  IN es_transport_t  * transp,
-  IN int                  ev,
-  IN int                  error,
-  OUT void    *    ctx);
+      IN es_transport_t  * transp,
+      IN int                  ev,
+      IN int                  error,
+      OUT void    *    ctx);
 
 typedef void (*es_transport_msg_recv_cb)(
-  IN es_transport_t   *   transp,
-  IN const char const  * msg,
-  IN const unsigned int   size,
-  OUT void    *    ctx);
+      IN es_transport_t   *   transp,
+      IN const char const  * msg,
+      IN const unsigned int   size,
+      OUT void    *    ctx);
 
 
 struct es_transport_callbacks_s {
-  es_transport_event_cb event_cb;
-  es_transport_msg_recv_cb msg_recv_cb;
-  void * user_data;
+   es_transport_event_cb event_cb;
+   es_transport_msg_recv_cb msg_recv_cb;
+   void * user_data;
 };
 
 es_status es_transport_init(OUT es_transport_t ** ctx, IN struct event_base * base);
@@ -56,11 +56,11 @@ es_status es_transport_start(es_transport_t * ctx);
 es_status es_transport_get_udp_socket(IN es_transport_t * ctx, OUT int * fd);
 
 es_status es_transport_send(
-  IN es_transport_t * ctx,
-  IN char * ip,
-  IN int port,
-  IN const char * msg,
-  IN size_t size);
+      IN es_transport_t * ctx,
+      IN char * ip,
+      IN int port,
+      IN const char * msg,
+      IN size_t size);
 
 #if defined(__cplusplus)
 }

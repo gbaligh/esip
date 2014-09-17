@@ -40,11 +40,11 @@
 #define ES_TRANSPORT_MAX_BUFFER_SIZE  2048 //Baby jumbo frame max frame size
 
 struct es_transport_s {
-  int udp_socket;
-  struct event * evudpsock;
-  struct event_base * base;
+   int udp_socket;
+   struct event * evudpsock;
+   struct event_base * base;
 
-  struct es_transport_callbacks_s callbacks;
+   struct es_transport_callbacks_s callbacks;
 };
 
 /**
@@ -52,9 +52,9 @@ struct es_transport_s {
  * @return void
  */
 static void _es_transport_ev(
-  evutil_socket_t fd,
-  short event,
-  void * arg);
+      evutil_socket_t fd,
+      short event,
+      void * arg);
 
 /**
  * @brief Bind a socket
@@ -62,205 +62,205 @@ static void _es_transport_ev(
  * @note Only IPv4 supported
  */
 static es_status _es_bind_socket(
-  int sock,
-  const char * ipv4addr,
-  const unsigned int port);
+      int sock,
+      const char * ipv4addr,
+      const unsigned int port);
 
 es_status es_transport_init(
-  OUT es_transport_t  **  ctx,
-  IN  struct event_base  * loop)
+      OUT es_transport_t  **  ctx,
+      IN  struct event_base  * loop)
 {
-  struct es_transport_s * _ctx = NULL;
+   struct es_transport_s * _ctx = NULL;
 
-  if (loop == NULL) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Transport Loop not valid");
-    return ES_ERROR_NULLPTR;
-  }
+   if (loop == NULL) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Loop not valid");
+      return ES_ERROR_NULLPTR;
+   }
 
-  _ctx = (struct es_transport_s *) malloc(sizeof(struct es_transport_s));
-  if (_ctx == NULL) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Initialisation failed");
-    return ES_ERROR_OUTOFRESOURCES;
-  }
+   _ctx = (struct es_transport_s *) malloc(sizeof(struct es_transport_s));
+   if (_ctx == NULL) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Initialisation failed");
+      return ES_ERROR_OUTOFRESOURCES;
+   }
 
-  memset(_ctx, 0, sizeof(struct es_transport_s));
+   memset(_ctx, 0, sizeof(struct es_transport_s));
 
-  _ctx->udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
-  if (_ctx->udp_socket == -1) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Can not create socket");
-    free(_ctx);
-    return ES_ERROR_NETWORK_PROBLEM;
-  }
+   _ctx->udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+   if (_ctx->udp_socket == -1) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Can not create socket");
+      free(_ctx);
+      return ES_ERROR_NETWORK_PROBLEM;
+   }
 
-  _ctx->base = loop;
+   _ctx->base = loop;
 
-  evutil_make_socket_nonblocking(_ctx->udp_socket);
+   evutil_make_socket_nonblocking(_ctx->udp_socket);
 
-  *ctx = _ctx;
-  return ES_OK;
+   *ctx = _ctx;
+   return ES_OK;
 }
 
 es_status es_transport_destroy(
-  IN es_transport_t * ctx)
+      IN es_transport_t * ctx)
 {
-  if (ctx == NULL) {
-    return ES_ERROR_NULLPTR;
-  }
+   if (ctx == NULL) {
+      return ES_ERROR_NULLPTR;
+   }
 
-  close(ctx->udp_socket);
+   close(ctx->udp_socket);
 
-  memset(ctx, 0, sizeof(struct es_transport_s));
+   memset(ctx, 0, sizeof(struct es_transport_s));
 
-  free(ctx);
+   free(ctx);
 
-  return ES_OK;
+   return ES_OK;
 }
 
 es_status es_transport_start(
-  IN es_transport_t * ctx)
+      IN es_transport_t * ctx)
 {
-  struct es_transport_s * _ctx = (struct es_transport_s *) ctx;
+   struct es_transport_s * _ctx = (struct es_transport_s *) ctx;
 
-  if (ctx == NULL) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
-    return ES_ERROR_NULLPTR;
-  }
+   if (ctx == NULL) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
 
-  if (_es_bind_socket(_ctx->udp_socket, NULL, ES_TRANSPORT_DEFAULT_PORT) != ES_OK) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Can not bind on socket");
-    free(_ctx);
-    return ES_ERROR_NETWORK_PROBLEM;
-  }
+   if (_es_bind_socket(_ctx->udp_socket, NULL, ES_TRANSPORT_DEFAULT_PORT) != ES_OK) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Can not bind on socket");
+      free(_ctx);
+      return ES_ERROR_NETWORK_PROBLEM;
+   }
 
-  _ctx->evudpsock = event_new(ctx->base, _ctx->udp_socket,
-                              (EV_READ|EV_PERSIST), _es_transport_ev, (void *)_ctx);
-  if (_ctx->evudpsock == NULL) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Can not create event for socket");
-    free(_ctx);
-    return ES_ERROR_UNKNOWN;
-  }
+   _ctx->evudpsock = event_new(ctx->base, _ctx->udp_socket,
+                               (EV_READ|EV_PERSIST), _es_transport_ev, (void *)_ctx);
+   if (_ctx->evudpsock == NULL) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Can not create event for socket");
+      free(_ctx);
+      return ES_ERROR_UNKNOWN;
+   }
 
-  /* set priority */
-  if (event_priority_set(_ctx->evudpsock, 0) != 0) {
-    ESIP_TRACE(ESIP_LOG_WARNING, "Can not set priority event for socket");
-  }
+   /* set priority */
+   if (event_priority_set(_ctx->evudpsock, 0) != 0) {
+      ESIP_TRACE(ESIP_LOG_WARNING, "Can not set priority event for socket");
+   }
 
-  if (event_add(_ctx->evudpsock, NULL) != 0) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Can not make socket event pending");
-    free(_ctx);
-    return ES_ERROR_UNKNOWN;
-  }
+   if (event_add(_ctx->evudpsock, NULL) != 0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Can not make socket event pending");
+      free(_ctx);
+      return ES_ERROR_UNKNOWN;
+   }
 
-  return ES_OK;
+   return ES_OK;
 }
 
 es_status es_transport_set_callbacks(
-  IN es_transport_t * _ctx,
-  IN struct es_transport_callbacks_s * cs)
+      IN es_transport_t * _ctx,
+      IN struct es_transport_callbacks_s * cs)
 {
-  struct es_transport_s * ctx = (struct es_transport_s *)_ctx;
+   struct es_transport_s * ctx = (struct es_transport_s *)_ctx;
 
-  if ((cs == NULL) || (ctx == NULL)) {
-    return ES_ERROR_NULLPTR;
-  }
+   if ((cs == NULL) || (ctx == NULL)) {
+      return ES_ERROR_NULLPTR;
+   }
 
-  ctx->callbacks.event_cb   = cs->event_cb;
-  ctx->callbacks.msg_recv_cb  = cs->msg_recv_cb;
-  ctx->callbacks.user_data  = cs->user_data;
+   ctx->callbacks.event_cb   = cs->event_cb;
+   ctx->callbacks.msg_recv_cb  = cs->msg_recv_cb;
+   ctx->callbacks.user_data  = cs->user_data;
 
-  return ES_OK;
+   return ES_OK;
 }
 
 es_status es_transport_get_udp_socket(
-  IN    es_transport_t * _ctx,
-  OUT   int    *   fd)
+      IN    es_transport_t * _ctx,
+      OUT   int    *   fd)
 {
-  struct es_transport_s * ctx = (struct es_transport_s *)_ctx;
+   struct es_transport_s * ctx = (struct es_transport_s *)_ctx;
 
-  if (ctx == NULL) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
-    return ES_ERROR_NULLPTR;
-  }
+   if (ctx == NULL) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
 
-  if (ctx->udp_socket > 0) {
-    *fd = _ctx->udp_socket;
-    return ES_OK;
-  }
+   if (ctx->udp_socket > 0) {
+      *fd = _ctx->udp_socket;
+      return ES_OK;
+   }
 
-  return ES_ERROR_UNINITIALIZED;
+   return ES_ERROR_UNINITIALIZED;
 }
 
 es_status es_transport_send(
-  IN es_transport_t * ctx,
-  IN char * ip,
-  IN int port,
-  IN const char * msg,
-  IN size_t size)
+      IN es_transport_t * ctx,
+      IN char * ip,
+      IN int port,
+      IN const char * msg,
+      IN size_t size)
 {
-  struct sockaddr_in saddr;
+   struct sockaddr_in saddr;
 
-  saddr.sin_family = AF_INET;
-  saddr.sin_addr.s_addr = inet_addr(ip);
-  saddr.sin_port = htons(port);
+   saddr.sin_family = AF_INET;
+   saddr.sin_addr.s_addr = inet_addr(ip);
+   saddr.sin_port = htons(port);
 
-  sendto(ctx->udp_socket, msg, size, 0, (const struct sockaddr *)&saddr, sizeof(saddr));
+   sendto(ctx->udp_socket, msg, size, 0, (const struct sockaddr *)&saddr, sizeof(saddr));
 
-  return ES_OK;
+   return ES_OK;
 }
 
 static es_status _es_bind_socket(
-  int sock,
-  const char * ipv4addr,
-  const unsigned int port)
+      int sock,
+      const char * ipv4addr,
+      const unsigned int port)
 {
-  struct sockaddr_in addr;
+   struct sockaddr_in addr;
 
-  memset(&addr, 0, sizeof(addr));
+   memset(&addr, 0, sizeof(addr));
 
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(port);
-  addr.sin_addr.s_addr = (ipv4addr == NULL) ? INADDR_ANY : inet_addr(ipv4addr);
-  if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Can not bind on socket");
-    return ES_ERROR_NETWORK_PROBLEM;
-  }
+   addr.sin_family = AF_INET;
+   addr.sin_port = htons(port);
+   addr.sin_addr.s_addr = (ipv4addr == NULL) ? INADDR_ANY : inet_addr(ipv4addr);
+   if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Can not bind on socket");
+      return ES_ERROR_NETWORK_PROBLEM;
+   }
 
-  return ES_OK;
+   return ES_OK;
 }
 
 static void _es_transport_ev(
-  evutil_socket_t fd,
-  short event,
-  void * arg)
+      evutil_socket_t fd,
+      short event,
+      void * arg)
 {
-  struct es_transport_s * ctx = (struct es_transport_s *)arg;
+   struct es_transport_s * ctx = (struct es_transport_s *)arg;
 
-  if (ctx == NULL) {
-    ESIP_TRACE(ESIP_LOG_ERROR, "Transaction Ctx invalid");
-    return;
-  }
+   if (ctx == NULL) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transaction Ctx invalid");
+      return;
+   }
 
-  if (event & EV_READ) {
-    struct sockaddr_in remote_addr;
-    socklen_t len = sizeof(struct sockaddr_in);
-    char buf[ES_TRANSPORT_MAX_BUFFER_SIZE];
-    size_t buf_len = sizeof(buf);
+   if (event & EV_READ) {
+      struct sockaddr_in remote_addr;
+      socklen_t len = sizeof(struct sockaddr_in);
+      char buf[ES_TRANSPORT_MAX_BUFFER_SIZE];
+      size_t buf_len = sizeof(buf);
 
-    buf_len = recvfrom(fd, buf, sizeof(buf), 0,
-                       (struct sockaddr *)&remote_addr, &len);
+      buf_len = recvfrom(fd, buf, sizeof(buf), 0,
+                         (struct sockaddr *)&remote_addr, &len);
 
-    buf[buf_len] = '\0';
+      buf[buf_len] = '\0';
 
-    ESIP_TRACE(ESIP_LOG_DEBUG, "Packet recieved from %s:%d [Len: %d]",
-               inet_ntoa(remote_addr.sin_addr),
-               ntohs(remote_addr.sin_port),
-               (unsigned int)buf_len);
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Packet recieved from %s:%d [Len: %d]",
+                 inet_ntoa(remote_addr.sin_addr),
+                 ntohs(remote_addr.sin_port),
+                 (unsigned int)buf_len);
 
-    if ((buf_len > 0) && (ctx->callbacks.msg_recv_cb != NULL)) {
-      ctx->callbacks.msg_recv_cb(ctx, buf, buf_len, ctx->callbacks.user_data);
-    }
-    if (ctx->callbacks.event_cb != NULL) {
-      ctx->callbacks.event_cb(ctx, 1, 0, ctx->callbacks.user_data);
-    }
-  }
+      if ((buf_len > 0) && (ctx->callbacks.msg_recv_cb != NULL)) {
+         ctx->callbacks.msg_recv_cb(ctx, buf, buf_len, ctx->callbacks.user_data);
+      }
+      if (ctx->callbacks.event_cb != NULL) {
+         ctx->callbacks.event_cb(ctx, 1, 0, ctx->callbacks.user_data);
+      }
+   }
 }

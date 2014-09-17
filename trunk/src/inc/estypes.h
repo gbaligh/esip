@@ -30,7 +30,7 @@
 #include <inttypes.h>
 #else
 #error Define HAVE_STDINT_H as 1 if you have <stdint.h>, \
-or HAVE_INTTYPES_H if you have <inttypes.h>
+   or HAVE_INTTYPES_H if you have <inttypes.h>
 #endif
 
 #if defined(__cplusplus)

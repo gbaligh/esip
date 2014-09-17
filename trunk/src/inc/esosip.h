@@ -18,19 +18,36 @@
 #ifndef _ES_OSIP_H_
 #define _ES_OSIP_H_
 
-#if defined(HAVE_CONFIG_H)
-#include "config.h"
-#endif
+/** @brief */
+typedef struct es_osip_s es_osip_t;
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-typedef struct es_osip_s es_osip_t;
+/**
+ * @brief es_osip_init
+ * @param ctx
+ * @param base
+ * @return
+ */
+es_status es_osip_init(es_osip_t ** ctx, struct event_base * base);
 
-es_status es_osip_init(OUT es_osip_t ** ctx, struct event_base * base);
+/**
+ * @brief es_osip_start
+ * @param _ctx
+ * @return
+ */
+es_status es_osip_start(es_osip_t          *_ctx);
 
-es_status es_osip_parse_msg(IN es_osip_t * ctx, const char * buf, unsigned int size);
+/**
+ * @brief es_osip_parse_msg
+ * @param ctx
+ * @param buf
+ * @param size
+ * @return
+ */
+es_status es_osip_parse_msg(es_osip_t * ctx, const char * buf, unsigned int size);
 
 #if defined(__cplusplus)
 }

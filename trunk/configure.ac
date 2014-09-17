@@ -14,6 +14,7 @@ PKG_CHECK_MODULES([LIBEVENT], [libevent])
 PKG_CHECK_MODULES([OSIP2], [libosip2])
 
 # Checks for header files.
+AC_CHECK_HEADERS([libcli.h], [])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIGNAL
