@@ -29,18 +29,18 @@
 #define ESIP_LOG_DEBUG    7
 
 #define ES_EMERG(msg, ...) \
-  do { \
-    printf("[%s][EMERGENCY]- " msg "\r\n", PACKAGE, ##__VA_ARGS__); \
-  } while(0)
+   do { \
+   printf("[%s][EMERGENCY]- " msg "\r\n", PACKAGE, ##__VA_ARGS__); \
+   } while(0)
 
 #define ES_ALERT(msg, ...) \
-  do { \
-    printf("[%s][ALERT]- " msg "\r\n", PACKAGE, ##__VA_ARGS__); \
-  } while(0)
+   do { \
+   printf("[%s][ALERT]- " msg "\r\n", PACKAGE, ##__VA_ARGS__); \
+   } while(0)
 
 /** */
 #define ESIP_TRACE(level, msg, ...) \
-  es_log_trace(NULL, level, msg, ##__VA_ARGS__)
+   es_log_trace(NULL, __FUNCTION__, __LINE__, level, msg, ##__VA_ARGS__)
 
 typedef struct es_log_s es_log_t;
 
@@ -54,7 +54,7 @@ es_status es_log_set_loglevel(es_log_t * handler, unsigned int level);
 es_status es_log_get_loglevel(es_log_t * handler, unsigned int * level);
 es_status es_log_set_print_cb(es_log_t * handler, es_log_print_cb cb, void * arg);
 
-void es_log_trace(es_log_t * handler, unsigned int level, const char const * format, ...);
+void es_log_trace(es_log_t * handler, const char *func, const int line, unsigned int level, const char const * format, ...);
 void es_log_emerg(es_log_t * handler, const char const * format, ...);
 void es_log_alert(es_log_t * handler, const char const * format, ...);
 void es_log_crit(es_log_t * handler, const char const * format, ...);
