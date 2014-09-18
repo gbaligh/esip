@@ -197,6 +197,12 @@ int main(const int argc, char *argv[])
       goto ERROR_EXIT;
    }
 
+   es_osip_stop(ctx.osipCtx);
+   es_cli_stop(ctx.cliCtx);
+
+   es_osip_deinit(ctx.osipCtx);
+   es_cli_deinit(ctx.cliCtx);
+
    goto EXIT;
 
 ERROR_EXIT:

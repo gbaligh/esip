@@ -154,6 +154,24 @@ es_status es_transport_start(
    return ES_OK;
 }
 
+es_status es_transport_stop(
+      IN es_transport_t *pCtx)
+{
+   struct es_transport_s * _pCtx = (struct es_transport_s *)pCtx;
+   if (_pCtx == (struct es_transport_s *)0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (event_del(_pCtx->evudpsock) != 0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Delete Event from loop failed.");
+   }
+
+   event_free(_pCtx->evudpsock);
+
+   return ES_OK;
+}
+
 es_status es_transport_set_callbacks(
       IN es_transport_t * _ctx,
       IN struct es_transport_callbacks_s * cs)

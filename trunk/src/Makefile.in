@@ -92,8 +92,8 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am__dirstamp = $(am__leading_dot)dirstamp
 am_esip_OBJECTS = esip-esip.$(OBJEXT) esip-eslog.$(OBJEXT) \
-	cli/esip-escli.$(OBJEXT) sip/esip-estransport.$(OBJEXT) \
-	sip/esip-esosip.$(OBJEXT)
+	cli/esip-escli.$(OBJEXT) sip/esip-esomsg.$(OBJEXT) \
+	sip/esip-estransport.$(OBJEXT) sip/esip-esosip.$(OBJEXT)
 esip_OBJECTS = $(am_esip_OBJECTS)
 am__DEPENDENCIES_1 =
 esip_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
@@ -259,7 +259,7 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 AM_CPPFLAGS = -g -Wall 
 AM_CFLAGS = -g -Wall -O
-esip_SOURCES = esip.c eslog.c cli/escli.c sip/estransport.c sip/esosip.c
+esip_SOURCES = esip.c eslog.c cli/escli.c sip/esomsg.c sip/estransport.c sip/esosip.c
 esip_LDADD = $(OSIP2_LIBS) $(LIBEVENT_LIBS) -lcli -lpthread
 esip_CFLAGS = $(OSIP2_CFLAGS) $(LIBEVENT_CFLAGS)
 all: all-am
@@ -352,6 +352,8 @@ sip/$(am__dirstamp):
 sip/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) sip/$(DEPDIR)
 	@: > sip/$(DEPDIR)/$(am__dirstamp)
+sip/esip-esomsg.$(OBJEXT): sip/$(am__dirstamp) \
+	sip/$(DEPDIR)/$(am__dirstamp)
 sip/esip-estransport.$(OBJEXT): sip/$(am__dirstamp) \
 	sip/$(DEPDIR)/$(am__dirstamp)
 sip/esip-esosip.$(OBJEXT): sip/$(am__dirstamp) \
@@ -372,6 +374,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/esip-esip.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/esip-eslog.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@cli/$(DEPDIR)/esip-escli.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@sip/$(DEPDIR)/esip-esomsg.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@sip/$(DEPDIR)/esip-esosip.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@sip/$(DEPDIR)/esip-estransport.Po@am__quote@
 
@@ -432,6 +435,20 @@ cli/esip-escli.obj: cli/escli.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='cli/escli.c' object='cli/esip-escli.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(esip_CFLAGS) $(CFLAGS) -c -o cli/esip-escli.obj `if test -f 'cli/escli.c'; then $(CYGPATH_W) 'cli/escli.c'; else $(CYGPATH_W) '$(srcdir)/cli/escli.c'; fi`
+
+sip/esip-esomsg.o: sip/esomsg.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(esip_CFLAGS) $(CFLAGS) -MT sip/esip-esomsg.o -MD -MP -MF sip/$(DEPDIR)/esip-esomsg.Tpo -c -o sip/esip-esomsg.o `test -f 'sip/esomsg.c' || echo '$(srcdir)/'`sip/esomsg.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) sip/$(DEPDIR)/esip-esomsg.Tpo sip/$(DEPDIR)/esip-esomsg.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sip/esomsg.c' object='sip/esip-esomsg.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(esip_CFLAGS) $(CFLAGS) -c -o sip/esip-esomsg.o `test -f 'sip/esomsg.c' || echo '$(srcdir)/'`sip/esomsg.c
+
+sip/esip-esomsg.obj: sip/esomsg.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(esip_CFLAGS) $(CFLAGS) -MT sip/esip-esomsg.obj -MD -MP -MF sip/$(DEPDIR)/esip-esomsg.Tpo -c -o sip/esip-esomsg.obj `if test -f 'sip/esomsg.c'; then $(CYGPATH_W) 'sip/esomsg.c'; else $(CYGPATH_W) '$(srcdir)/sip/esomsg.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) sip/$(DEPDIR)/esip-esomsg.Tpo sip/$(DEPDIR)/esip-esomsg.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='sip/esomsg.c' object='sip/esip-esomsg.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(esip_CFLAGS) $(CFLAGS) -c -o sip/esip-esomsg.obj `if test -f 'sip/esomsg.c'; then $(CYGPATH_W) 'sip/esomsg.c'; else $(CYGPATH_W) '$(srcdir)/sip/esomsg.c'; fi`
 
 sip/esip-estransport.o: sip/estransport.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(esip_CFLAGS) $(CFLAGS) -MT sip/esip-estransport.o -MD -MP -MF sip/$(DEPDIR)/esip-estransport.Tpo -c -o sip/esip-estransport.o `test -f 'sip/estransport.c' || echo '$(srcdir)/'`sip/estransport.c
