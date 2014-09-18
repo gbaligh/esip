@@ -37,7 +37,7 @@
 #include "estransport.h"
 #include "esosip.h"
 
-#define ES_OSIP_MAGIC		0X20140607
+#define ES_OSIP_MAGIC      0X20140607
 
 struct es_osip_s {
    /* Magic */
@@ -103,25 +103,25 @@ static es_status _es_osip_wakeup(struct es_osip_s *_ctx);
                         Public functions implementation
  ******************************************************************************/
 
-es_status es_osip_init(es_osip_t          **_ctx,
+es_status es_osip_init(es_osip_t          **pCtx,
                        struct event_base  *base)
 {
    es_status ret = ES_OK;
 
-   struct es_osip_s * ctx = (struct es_osip_s *) malloc(sizeof(struct es_osip_s));
-   if (ctx == NULL) {
+   struct es_osip_s * _pCtx = (struct es_osip_s *) malloc(sizeof(struct es_osip_s));
+   if (_pCtx == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not initialize OSip stack: no more memory");
       return ES_ERROR_OUTOFRESOURCES;
    }
 
    /* Set Magic */
-   ctx->magic = ES_OSIP_MAGIC;
+   _pCtx->magic = ES_OSIP_MAGIC;
 
    /* Init Transport Layer */
-   ret = es_transport_init(&ctx->transportCtx, base);
+   ret = es_transport_init(&_pCtx->transportCtx, base);
    if (ret != ES_OK) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Initializing Transport Layer failed");
-      free(ctx);
+      free(_pCtx);
       return ret;
    }
 
@@ -130,44 +130,44 @@ es_status es_osip_init(es_osip_t          **_ctx,
       struct es_transport_callbacks_s cs = {
          &_es_transport_event_cb,
          &_es_transport_msg_cb,
-         ctx
+         _pCtx
       };
 
-      ret = es_transport_set_callbacks(ctx->transportCtx, &cs);
+      ret = es_transport_set_callbacks(_pCtx->transportCtx, &cs);
       if (ret != ES_OK) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Setting Callbacks for Transport Layer failed");
-         free(ctx);
+         free(_pCtx);
          return ret;
       }
    }
 
    /* Init OSip */
-   if (osip_init(&ctx->osip) != OSIP_SUCCESS) {
+   if (osip_init(&_pCtx->osip) != OSIP_SUCCESS) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not initialize OSip stack");
-      free(ctx);
+      free(_pCtx);
       return ES_ERROR_UNKNOWN;
    }
 
    /* list of pending event */
-   if (osip_list_init(&ctx->pendingEv) != OSIP_SUCCESS) {
+   if (osip_list_init(&_pCtx->pendingEv) != OSIP_SUCCESS) {
       ESIP_TRACE(ESIP_LOG_ERROR, "List for pending event initialization failed");
-      free(ctx->osip);
-      free(ctx);
+      free(_pCtx->osip);
+      free(_pCtx);
       return ES_ERROR_OUTOFRESOURCES;
    }
 
    /* Set internal OSip Callback */
-   if ((ret = _es_osip_set_internal_callbacks(ctx)) != ES_OK) {
-      free(ctx->osip);
-      free(ctx);
+   if ((ret = _es_osip_set_internal_callbacks(_pCtx)) != ES_OK) {
+      free(_pCtx->osip);
+      free(_pCtx);
       return ret;
    }
 
    /* Set base event thread to use */
-   ctx->base = base;
+   _pCtx->base = base;
 
    /* Ok */
-   *_ctx = ctx;
+   *pCtx = _pCtx;
    return ES_OK;
 }
 
@@ -190,12 +190,69 @@ es_status es_osip_start(es_osip_t          *_ctx)
    return ret;
 }
 
+es_status es_osip_stop(es_osip_t *pCtx)
+{
+   es_status ret = ES_OK;
+
+   struct es_osip_s *_pCtx = (struct es_osip_s *)pCtx;
+   if (_pCtx == (struct es_osip_s *)0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Can not initialize OSip stack: no more memory");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_pCtx->magic != ES_OSIP_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Bad Magic %d - ptr(%p)(%d)", ES_OSIP_MAGIC, _pCtx, _pCtx->magic);
+      return ES_ERROR_NULLPTR;
+   }
+
+   ret = es_transport_stop(_pCtx->transportCtx);
+   if (ret != ES_OK) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Start Transport Layer failed");
+      return ret;
+   }
+
+   return ret;
+}
+
+static void _es_osip_list_freeEl(void *pEl)
+{
+   struct event *_pEvSip = (struct event *)pEl;
+   if (_pEvSip == (struct event *)0) {
+      return;
+   }
+
+   event_free(_pEvSip);
+}
+
+es_status es_osip_deinit(es_osip_t *pCtx)
+{
+   struct es_osip_s *_pCtx = (struct es_osip_s *)pCtx;
+   if (_pCtx == (struct es_osip_s *)0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Bad Context pointer ptr(%p)", _pCtx);
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_pCtx->magic != ES_OSIP_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Bad Magic %d - ptr(%p)(%d)", ES_OSIP_MAGIC, _pCtx, _pCtx->magic);
+      return ES_ERROR_NULLPTR;
+   }
+
+   osip_list_special_free(&_pCtx->pendingEv, _es_osip_list_freeEl);
+
+   es_transport_destroy(_pCtx->transportCtx);
+   osip_release(_pCtx->osip);
+   free(_pCtx);
+
+   return ES_OK;
+}
+
 es_status es_osip_parse_msg(IN es_osip_t     *_ctx,
                             IN const char    *buf,
                             IN unsigned int  size)
 {
    osip_event_t * evt = NULL;
    struct es_osip_s * ctx = (struct es_osip_s *)_ctx;
+   osip_transaction_t *tr = NULL;
 
    ESIP_TRACE(ESIP_LOG_DEBUG, "Enter");
 
@@ -226,45 +283,52 @@ es_status es_osip_parse_msg(IN es_osip_t     *_ctx,
                   ((evt->sip->reason_phrase) ?
                       evt->sip->reason_phrase : "NULL")));
 
-   if (osip_find_transaction_and_add_event(ctx->osip, evt) != OSIP_SUCCESS) {
+   if (EVT_IS_RCV_STATUS_1XX(evt)) {
+      /* TODO stop retransmit ! */
+   }
+
+   if( EVT_IS_RCV_STATUS_2XX(evt) || EVT_IS_RCV_STATUS_3456XX(evt) || EVT_IS_RCV_ACK(evt)) {
+      tr = osip_transaction_find(&ctx->osip->osip_ist_transactions, evt);
+      if (tr == NULL) {
+         ESIP_TRACE(ESIP_LOG_INFO, "No transaction for MESSAGE event");
+         free(evt);
+         return ES_ERROR_ILLEGAL_ACTION;
+      }
+   }
+
+   if (EVT_IS_RCV_INVITE(evt) || EVT_IS_RCV_REQUEST(evt)) {
       ESIP_TRACE(ESIP_LOG_INFO, "New transaction");
-      osip_transaction_t * tr = NULL;
 
       /* Init a new INVITE Server Transaction */
-      if (evt->type == RCV_REQINVITE) {
-         if (osip_transaction_init(&tr, IST, ctx->osip, evt->sip) != OSIP_SUCCESS) {
-            ESIP_TRACE(ESIP_LOG_ERROR, "Erro init new transation");
-            free(evt);
-            return ES_ERROR_OUTOFRESOURCES;
-         }
-      } else {
-         if (osip_transaction_init(&tr, NIST, ctx->osip, evt->sip) != OSIP_SUCCESS) {
-            ESIP_TRACE(ESIP_LOG_ERROR, "Erro init new transation");
-            free(evt);
-            return ES_ERROR_OUTOFRESOURCES;
-         }
-      }
-
-      /* Set Out Socket for the new Transaction, used to send response */
-      {
-         int fd = -1;
-         es_transport_get_udp_socket(ctx->transportCtx, &fd);
-         if (osip_transaction_set_out_socket(tr, fd) != OSIP_SUCCESS) {
-            ESIP_TRACE(ESIP_LOG_ERROR, "Setting socket descriptor failed");
-            free(evt);
-            return ES_ERROR_UNKNOWN;
-         }
-      }
-
-      /* Set context reference into Transaction struct */
-      osip_transaction_set_your_instance(tr, (void *)ctx);
-
-      /* add a new OSip event into FiFo list */
-      if (osip_transaction_add_event(tr, evt)) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "adding event failed");
+      if (osip_transaction_init(&tr, IST, ctx->osip, evt->sip) != OSIP_SUCCESS) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "Erro init new transation");
          free(evt);
          return ES_ERROR_OUTOFRESOURCES;
       }
+   }
+
+
+   /* Set Out Socket for the new Transaction, used to send response */
+   {
+      int fd = -1;
+      es_transport_get_udp_socket(ctx->transportCtx, &fd);
+      if (osip_transaction_set_out_socket(tr, fd) != OSIP_SUCCESS) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "Setting socket descriptor failed");
+         osip_transaction_free(tr);
+         free(evt);
+         return ES_ERROR_UNKNOWN;
+      }
+   }
+
+   /* Set context reference into Transaction struct */
+   osip_transaction_set_your_instance(tr, (void *)ctx);
+
+   /* add a new OSip event into FiFo list */
+   if (osip_transaction_add_event(tr, evt)) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "adding event failed");
+      osip_transaction_free(tr);
+      free(evt);
+      return ES_ERROR_OUTOFRESOURCES;
    }
 
    /* Send notification using event for the transaction */
@@ -319,12 +383,9 @@ static void _es_osip_loop(evutil_socket_t    fd,
                           short              event,
                           void               *arg)
 {
-   struct es_osip_s * ctx = (struct es_osip_s *)arg;
-
-   ESIP_TRACE(ESIP_LOG_DEBUG, "Enter");
-
+   struct es_osip_s * _pCtx = (struct es_osip_s *)arg;
    /* Check Context */
-   if (ctx == NULL) {
+   if (_pCtx == (struct es_osip_s *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "SIP ctx is null");
       return;
    }
@@ -332,86 +393,96 @@ static void _es_osip_loop(evutil_socket_t    fd,
    /* Loop until we have no pending event,
    * blocking: if there is too mush events
    * and we are using the same main loop thread !! */
-   while (osip_list_size(&ctx->pendingEv) > 0) {
+   while ( (osip_list_size(&_pCtx->pendingEv) > 0) ) {
 
       /* Get the first event from the list */
-      struct event * ev = (struct event *)osip_list_get(&ctx->pendingEv, 0);
+      struct event * ev = (struct event *)osip_list_get(&_pCtx->pendingEv, 0);
 
       ESIP_TRACE(ESIP_LOG_DEBUG, "pending event %p", ev);
 
       /* Remove this event since it handled now */
-      osip_list_remove(&ctx->pendingEv, 0);
+      osip_list_remove(&_pCtx->pendingEv, 0);
 
       /* INVITE Client Transaction Fifo list */
-      if (osip_ict_execute(ctx->osip) != OSIP_SUCCESS) {
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Check pending ICT event...");
+      if (osip_ict_execute(_pCtx->osip) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR,"== ICT failed");
       }
 
       /* INVITE Server Transaction Fifo list */
-      if (osip_ist_execute(ctx->osip) != OSIP_SUCCESS) {
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Check pending IST event...");
+      if (osip_ist_execute(_pCtx->osip) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR,"== IST failed");
       }
 
       /* Non-INVITE Client Transaction Fifo list */
-      if (osip_nict_execute(ctx->osip) != OSIP_SUCCESS) {
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Check pending NICT event...");
+      if (osip_nict_execute(_pCtx->osip) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR,"== NICT failed");
       }
 
       /* Non-INVITE Server Transaction Fifo list */
-      if (osip_nist_execute(ctx->osip) != OSIP_SUCCESS) {
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Check pending NIST event...");
+      if (osip_nist_execute(_pCtx->osip) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR,"== NIST failed");
       }
 
       /* INVITE Client Transation Timer Event Fifo list */
-      osip_timers_ict_execute(ctx->osip);
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Check pending TIMER-ICT event...");
+      osip_timers_ict_execute(_pCtx->osip);
 
       /* INVITE Server Transaction Timer Event Fifo list */
-      osip_timers_ist_execute(ctx->osip);
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Check pending TIMER-IST event...");
+      osip_timers_ist_execute(_pCtx->osip);
 
       /* Non-INVITE Client Transaction Timer Event Fifo list */
-      osip_timers_nict_execute(ctx->osip);
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Check pending TIMER-NICT event...");
+      osip_timers_nict_execute(_pCtx->osip);
 
       /* Non-INVITE Server Transaction Timer Event Fifo list */
-      osip_timers_nist_execute(ctx->osip);
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Check pending TIMER-NIST event...");
+      osip_timers_nist_execute(_pCtx->osip);
+
+      event_free(ev);
    }
 }
 
-static es_status _es_osip_wakeup(struct es_osip_s * ctx)
+static es_status _es_osip_wakeup(struct es_osip_s * pCtx)
 {
-   struct event * evsip = NULL;
+   struct event * _pEvSip = (struct event *)0;
 
    ESIP_TRACE(ESIP_LOG_DEBUG, "Enter");
 
    /* Check Context */
-   if (ctx == NULL) {
+   if (pCtx == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "SIP ctx is null");
       return ES_ERROR_NULLPTR;
    }
 
    /* Dispatch a new event to unblock the base loop thread */
-   evsip = event_new(ctx->base, -1, (EV_READ), _es_osip_loop, (void *)ctx);
-   if (evsip == NULL) {
+   _pEvSip = event_new(pCtx->base, -1, (EV_READ), _es_osip_loop, (void *)pCtx);
+   if (_pEvSip == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not create event for OSip stack");
       return ES_ERROR_OUTOFRESOURCES;
    }
 
    /* set priority */
-   if (event_priority_set(evsip, 0) != 0) {
+   if (event_priority_set(_pEvSip, 0) != 0) {
       ESIP_TRACE(ESIP_LOG_WARNING, "Can not set priority event for OSip stack");
    }
 
    /* Add the new event to base loop thread handler */
-   if (event_add(evsip, NULL) != 0) {
+   if (event_add(_pEvSip, NULL) != 0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not make OSip event pending");
-      event_del(evsip);
+      event_del(_pEvSip);
       return ES_ERROR_OUTOFRESOURCES;
    }
 
    /* This is a pending event now, add it to Fifo list */
-   osip_list_add(&ctx->pendingEv, evsip, 0);
+   osip_list_add(&pCtx->pendingEv, _pEvSip, 0);
 
    /* activate the event (callabck will be executed) */
-   event_active(evsip, EV_READ, 0);
+   event_active(_pEvSip, EV_READ, 0);
 
    return ES_OK;
 }
@@ -449,13 +520,20 @@ static es_status _es_tools_build_response(osip_message_t       *req,
    }
 
    /* Set From header */
-   osip_from_clone(req->to, &msg->from);
+   osip_from_clone(req->from, &msg->from);
 
    /* Set To header */
-   osip_to_clone(req->from, &msg->to);
-   random_tag = osip_build_random_number();
-   snprintf(str_random, sizeof(str_random), "%d", random_tag);
-   osip_to_set_tag(msg->to, osip_strdup(str_random));
+   osip_to_clone(req->to, &msg->to);
+
+   {
+      osip_uri_param_t *tag = NULL;
+      osip_to_get_tag(msg->to, &tag);
+      if (tag == NULL) {
+         random_tag = osip_build_random_number();
+         snprintf(str_random, sizeof(str_random), "%d", random_tag);
+         osip_to_set_tag(msg->to, osip_strdup(str_random));
+      }
+   }
 
    /* Set CSeq header */
    osip_cseq_clone(req->cseq, &msg->cseq);
@@ -482,7 +560,7 @@ static es_status _es_tools_build_response(osip_message_t       *req,
    }
 
    /* Set User-Agent header */
-   osip_message_set_user_agent(msg, osip_strdup(PACKAGE));
+   osip_message_set_user_agent(msg, PACKAGE_STRING);
 
    *resp = msg;
 
@@ -497,28 +575,23 @@ static int _es_internal_send_msg_cb(osip_transaction_t   *tr,
 {
    char * buf = NULL;
    size_t buf_len = 0;
-   struct es_osip_s * ctx = NULL;
+   struct es_osip_s * _pCtx = NULL;
 
-   ctx = osip_transaction_get_your_instance(tr);
-   if (ctx == NULL) {
+   _pCtx = osip_transaction_get_your_instance(tr);
+   if (_pCtx == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
       return -1;
    }
 
    /* Check magic */
-   if (ctx->magic != ES_OSIP_MAGIC) {
+   if (_pCtx->magic != ES_OSIP_MAGIC) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
       return -1;
    }
-
    osip_message_to_str(msg, &buf, &buf_len);
-
    ESIP_TRACE(ESIP_LOG_DEBUG,"Sending \n=====>\n%s\n=====>", buf);
-
-   es_transport_send(ctx->transportCtx, addr, port, buf, buf_len);
-
+   es_transport_send(_pCtx->transportCtx, addr, port, buf, buf_len);
    free(buf);
-
    return OSIP_SUCCESS;
 }
 
@@ -532,15 +605,17 @@ static void _es_internal_transport_error_cb(int                   type,
 static void _es_internal_kill_transaction_cb(int                  type,
                                              osip_transaction_t   *tr)
 {
-   struct es_osip_s * ctx = NULL;
+   struct es_osip_s *_pCtx = NULL;
    ESIP_TRACE(ESIP_LOG_INFO,"Removing Transaction %p", tr);
 
-   ctx = osip_transaction_get_your_instance(tr);
-   if (ctx != NULL) {
-      /* TODO: Check magic */
-      if (osip_remove_transaction (ctx->osip, tr) != OSIP_SUCCESS) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "Remove Transaction %p failed", tr);
-      }
+   _pCtx = osip_transaction_get_your_instance(tr);
+   if (_pCtx == (struct es_osip_s *)0) {
+      return;
+   }
+
+   if (_pCtx->magic != ES_OSIP_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
+      return;
    }
 }
 
@@ -548,61 +623,111 @@ static void _es_internal_message_cb(int                     type,
                                     osip_transaction_t      *tr,
                                     osip_message_t          *msg)
 {
-   struct es_osip_s * ctx = NULL;
-   osip_message_t * response = NULL;
-   osip_event_t * evt = NULL;
+   struct es_osip_s * _pCtx = NULL;
+   osip_message_t *_pResp = NULL;
+   osip_event_t * _pEvt = NULL;
+   int sendResp = 0;
 
    ESIP_TRACE(ESIP_LOG_DEBUG,"Enter: type %d", type);
 
-   ctx = osip_transaction_get_your_instance(tr);
-   if (ctx == NULL) {
+   _pCtx = osip_transaction_get_your_instance(tr);
+   if (_pCtx == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
       return;
    }
 
    /* Check magic */
-   if (ctx->magic != ES_OSIP_MAGIC) {
+   if (_pCtx->magic != ES_OSIP_MAGIC) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
       return;
    }
 
-   if (_es_tools_build_response(msg, 0, &response) != ES_OK) {
-      ESIP_TRACE(ESIP_LOG_ERROR, "Creating Response failed");
-      return;
-   }
-
    switch (type) {
+
    case OSIP_IST_INVITE_RECEIVED: {
       ESIP_TRACE(ESIP_LOG_INFO,"OSIP_IST_INVITE_RECEIVED");
-
-      osip_message_set_status_code(response, SIP_TRYING);
-      osip_message_set_reason_phrase(response, osip_strdup("Trying"));
+      if (_es_tools_build_response(msg, 0, &_pResp) != ES_OK) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "Creating Response failed");
+         return;
+      }
+      osip_message_set_status_code(_pResp, SIP_OK);
+      osip_message_set_reason_phrase(_pResp, osip_strdup("OK"));
+      sendResp = 1;
    }
       break;
+
+   case OSIP_IST_INVITE_RECEIVED_AGAIN: {
+      ESIP_TRACE(ESIP_LOG_INFO,"OSIP_IST_INVITE_RECEIVED_AGAIN");
+   }
+      break;
+
+   case OSIP_IST_STATUS_2XX_SENT: {
+      ESIP_TRACE(ESIP_LOG_INFO,"OSIP_IST_STATUS_2XX_SENT");
+   }
+      break;
+
+   case OSIP_NIST_STATUS_2XX_SENT: {
+      ESIP_TRACE(ESIP_LOG_INFO,"OSIP_NIST_STATUS_2XX_SENT");
+   }
+      break;
+
+   case OSIP_IST_ACK_RECEIVED: {
+      ESIP_TRACE(ESIP_LOG_INFO,"OSIP_IST_ACK_RECEIVED");
+   }
+      break;
+
+   case OSIP_IST_ACK_RECEIVED_AGAIN: {
+      ESIP_TRACE(ESIP_LOG_INFO,"OSIP_IST_ACK_RECEIVED_AGAIN");
+   }
+      break;
+
    case OSIP_NIST_REGISTER_RECEIVED: {
       /* TODO: Send it to REGISTRAR module */
       ESIP_TRACE(ESIP_LOG_INFO,"OSIP_NIST_REGISTER_RECEIVED");
-
-      osip_message_set_status_code(response, SIP_OK);
-      osip_message_set_reason_phrase(response, osip_strdup("OK"));
+      if (_es_tools_build_response(msg, 0, &_pResp) != ES_OK) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "Creating Response failed");
+         return;
+      }
+      osip_message_set_status_code(_pResp, SIP_OK);
+      osip_message_set_reason_phrase(_pResp, osip_strdup("OK"));
+      sendResp = 1;
    }
       break;
+
+   case OSIP_NIST_BYE_RECEIVED: {
+      /* TODO: Send it to REGISTRAR module */
+      ESIP_TRACE(ESIP_LOG_INFO,"OSIP_NIST_BYE_RECEIVED");
+      if (_es_tools_build_response(msg, 0, &_pResp) != ES_OK) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "Creating Response failed");
+         return;
+      }
+      osip_message_set_status_code(_pResp, SIP_OK);
+      osip_message_set_reason_phrase(_pResp, osip_strdup("OK"));
+      sendResp = 1;
+   }
+      break;
+
+   case OSIP_NIST_UNKNOWN_REQUEST_RECEIVED: {
+      ESIP_TRACE(ESIP_LOG_INFO,"OSIP_NIST_UNKNOWN_REQUEST_RECEIVED");
+   }
+      break;
+
    default: {
       ESIP_TRACE(ESIP_LOG_INFO,"NOT SUPPORTED METHODE");
-      osip_message_set_status_code(response, SIP_NOT_IMPLEMENTED);
-      osip_message_set_reason_phrase(response, osip_strdup("Not Implemented Methode"));
    }
       break;
    }
 
-   evt = osip_new_outgoing_sipmessage(response);
-   osip_transaction_add_event(tr, evt);
+   if (sendResp) {
+      _pEvt = osip_new_outgoing_sipmessage(_pResp);
+      osip_transaction_add_event(tr, _pEvt);
 
-   /* Send notification using event for the transaction */
-   if (_es_osip_wakeup(ctx) != ES_OK) {
-      ESIP_TRACE(ESIP_LOG_ERROR, "sending event failed");
-      free(evt);
-      return;
+      /* Send notification using event for the transaction */
+      if (_es_osip_wakeup(_pCtx) != ES_OK) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "sending event failed");
+         free(_pEvt);
+         return;
+      }
    }
 }
 

@@ -57,6 +57,8 @@ struct es_cli_s {
    struct evconnlistener     *listener;
    /* Cli Context */
    struct cli_def            *cliCtx;
+   /* CLI thread handler */
+   pthread_t                  thread;
 };
 
 struct _es_cli_thd_s {
@@ -161,6 +163,8 @@ static void _es_evconnlistener_cb(struct evconnlistener *pListner, evutil_socket
          ESIP_TRACE(ESIP_LOG_ERROR, "pthread_create");
          return;
       }
+
+      evconnlistener_disable(_pCtx->listener);
    }
 
 #if 0
@@ -301,8 +305,54 @@ es_status es_cli_start(es_cli_t *pCtx)
       return ES_ERROR_NULLPTR;
    }
 
+   if (_pCtx->magic != ES_CLI_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "");
+      return ES_ERROR_INVALID_HANDLE;
+   }
+
    ESIP_TRACE(ESIP_LOG_INFO, "Starting CLI for ESip");
    evconnlistener_enable(_pCtx->listener);
 
+   return ES_OK;
+}
+
+es_status es_cli_stop(es_cli_t *pCtx)
+{
+   struct es_cli_s *_pCtx = (struct es_cli_s *)pCtx;
+   if (_pCtx == (struct es_cli_s *)0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_pCtx->magic != ES_CLI_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "");
+      return ES_ERROR_INVALID_HANDLE;
+   }
+
+   evconnlistener_disable(_pCtx->listener);
+
+   return ES_OK;
+}
+
+es_status es_cli_deinit(es_cli_t *pCtx)
+{
+   struct es_cli_s *_pCtx = (struct es_cli_s *)pCtx;
+   if (_pCtx == (struct es_cli_s *)0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_pCtx->magic != ES_CLI_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "");
+      return ES_ERROR_INVALID_HANDLE;
+   }
+
+   cli_done(_pCtx->cliCtx);
+
+   close(evconnlistener_get_fd(_pCtx->listener));
+
+   evconnlistener_free(_pCtx->listener);
+
+   free(_pCtx);
    return ES_OK;
 }

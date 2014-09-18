@@ -18,10 +18,6 @@
 #ifndef _ES_TRANSPORT_H_
 #define _ES_TRANSPORT_H_
 
-#if defined(HAVE_CONFIG_H)
-#include "config.h"
-#endif
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -47,20 +43,19 @@ struct es_transport_callbacks_s {
    void * user_data;
 };
 
-es_status es_transport_init(OUT es_transport_t ** ctx, IN struct event_base * base);
+es_status es_transport_init(es_transport_t **ppCtx, struct event_base * pBase);
 
-es_status es_transport_set_callbacks(IN es_transport_t * ctx, IN struct es_transport_callbacks_s * cs);
+es_status es_transport_set_callbacks(es_transport_t *pCtx, struct es_transport_callbacks_s * cs);
 
-es_status es_transport_start(es_transport_t * ctx);
+es_status es_transport_start(es_transport_t *pCtx);
 
-es_status es_transport_get_udp_socket(IN es_transport_t * ctx, OUT int * fd);
+es_status es_transport_stop(es_transport_t *pCtx);
 
-es_status es_transport_send(
-      IN es_transport_t * ctx,
-      IN char * ip,
-      IN int port,
-      IN const char * msg,
-      IN size_t size);
+es_status es_transport_destroy(es_transport_t *pCtx);
+
+es_status es_transport_get_udp_socket(es_transport_t *pCtx, int * fd);
+
+es_status es_transport_send(es_transport_t *pCtx, char * ip, int port, const char * msg, size_t size);
 
 #if defined(__cplusplus)
 }

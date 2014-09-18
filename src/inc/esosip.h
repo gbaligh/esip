@@ -38,7 +38,21 @@ es_status es_osip_init(es_osip_t ** ctx, struct event_base * base);
  * @param _ctx
  * @return
  */
-es_status es_osip_start(es_osip_t          *_ctx);
+es_status es_osip_start(es_osip_t *pCtx);
+
+/**
+ * @brief es_osip_stop
+ * @param pCtx
+ * @return
+ */
+es_status es_osip_stop(es_osip_t *pCtx);
+
+/**
+ * @brief es_osip_deinit
+ * @param pCtx
+ * @return
+ */
+es_status es_osip_deinit(es_osip_t *pCtx);
 
 /**
  * @brief es_osip_parse_msg
