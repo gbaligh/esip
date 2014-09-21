@@ -30,6 +30,7 @@
 #include <event2/event.h>
 
 #include <osip2/osip.h>
+#include <osip2/osip_dialog.h>
 
 #include "eserror.h"
 #include "log.h"
@@ -171,17 +172,17 @@ es_status es_osip_init(es_osip_t          **pCtx,
    return ES_OK;
 }
 
-es_status es_osip_start(es_osip_t          *_ctx)
+es_status es_osip_start(es_osip_t          *pCtx)
 {
    es_status ret = ES_OK;
 
-   struct es_osip_s *pCtx = (struct es_osip_s *)_ctx;
-   if (pCtx == NULL) {
+   struct es_osip_s *_pCtx = (struct es_osip_s *)pCtx;
+   if (_pCtx == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not initialize OSip stack: no more memory");
       return ES_ERROR_OUTOFRESOURCES;
    }
 
-   ret = es_transport_start(pCtx->transportCtx);
+   ret = es_transport_start(_pCtx->transportCtx);
    if (ret != ES_OK) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Start Transport Layer failed");
       return ret;
@@ -246,26 +247,26 @@ es_status es_osip_deinit(es_osip_t *pCtx)
    return ES_OK;
 }
 
-es_status es_osip_parse_msg(IN es_osip_t     *_ctx,
+es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
                             IN const char    *buf,
                             IN unsigned int  size)
 {
    osip_event_t * evt = NULL;
-   struct es_osip_s * ctx = (struct es_osip_s *)_ctx;
+   struct es_osip_s *_pCtx = (struct es_osip_s *)pCtx;
    osip_transaction_t *tr = NULL;
 
    ESIP_TRACE(ESIP_LOG_DEBUG, "Enter");
 
    /* Check Context */
-   if (ctx == NULL) {
+   if (_pCtx == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "SIP ctx is null");
       return ES_ERROR_NULLPTR;
    }
 
    /* Check Context magic */
-   if (ctx->magic != ES_OSIP_MAGIC) {
+   if (_pCtx->magic != ES_OSIP_MAGIC) {
       ESIP_TRACE(ESIP_LOG_ERROR, "SIP ctx is not valid");
-      return ES_ERROR_NULLPTR;
+      return ES_ERROR_INVALID_HANDLE;
    }
 
    /* Parse buffer and check if it's really a SIP Message */
@@ -287,8 +288,8 @@ es_status es_osip_parse_msg(IN es_osip_t     *_ctx,
       /* TODO stop retransmit ! */
    }
 
-   if( EVT_IS_RCV_STATUS_2XX(evt) || EVT_IS_RCV_STATUS_3456XX(evt) || EVT_IS_RCV_ACK(evt)) {
-      tr = osip_transaction_find(&ctx->osip->osip_ist_transactions, evt);
+   if( EVT_IS_RCV_STATUS_2XX(evt) || EVT_IS_RCV_STATUS_3456XX(evt)) {
+      tr = osip_transaction_find(&_pCtx->osip->osip_ist_transactions, evt);
       if (tr == NULL) {
          ESIP_TRACE(ESIP_LOG_INFO, "No transaction for MESSAGE event");
          free(evt);
@@ -296,22 +297,34 @@ es_status es_osip_parse_msg(IN es_osip_t     *_ctx,
       }
    }
 
-   if (EVT_IS_RCV_INVITE(evt) || EVT_IS_RCV_REQUEST(evt)) {
-      ESIP_TRACE(ESIP_LOG_INFO, "New transaction");
+   if (EVT_IS_RCV_ACK(evt)) {
+       /* TODO Look for Dialog */
+   }
 
+   if (EVT_IS_RCV_INVITE(evt)) {
+      ESIP_TRACE(ESIP_LOG_INFO, "New INVITE transaction");
       /* Init a new INVITE Server Transaction */
-      if (osip_transaction_init(&tr, IST, ctx->osip, evt->sip) != OSIP_SUCCESS) {
+      if (osip_transaction_init(&tr, IST, _pCtx->osip, evt->sip) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Erro init new transation");
          free(evt);
          return ES_ERROR_OUTOFRESOURCES;
       }
    }
 
+   if (EVT_IS_RCV_REQUEST(evt)) {
+      ESIP_TRACE(ESIP_LOG_INFO, "New NON INVITE transaction");
+      /* Init a new NON INVITE Server Transaction */
+      if (osip_transaction_init(&tr, NIST, _pCtx->osip, evt->sip) != OSIP_SUCCESS) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "Erro init new transation");
+         free(evt);
+         return ES_ERROR_OUTOFRESOURCES;
+      }
+   }
 
    /* Set Out Socket for the new Transaction, used to send response */
    {
       int fd = -1;
-      es_transport_get_udp_socket(ctx->transportCtx, &fd);
+      es_transport_get_udp_socket(_pCtx->transportCtx, &fd);
       if (osip_transaction_set_out_socket(tr, fd) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Setting socket descriptor failed");
          osip_transaction_free(tr);
@@ -321,7 +334,7 @@ es_status es_osip_parse_msg(IN es_osip_t     *_ctx,
    }
 
    /* Set context reference into Transaction struct */
-   osip_transaction_set_your_instance(tr, (void *)ctx);
+   osip_transaction_set_your_instance(tr, (void *)_pCtx);
 
    /* add a new OSip event into FiFo list */
    if (osip_transaction_add_event(tr, evt)) {
@@ -332,7 +345,7 @@ es_status es_osip_parse_msg(IN es_osip_t     *_ctx,
    }
 
    /* Send notification using event for the transaction */
-   if (_es_osip_wakeup(ctx) != ES_OK) {
+   if (_es_osip_wakeup(_pCtx) != ES_OK) {
       ESIP_TRACE(ESIP_LOG_ERROR, "sending event failed");
       free(evt);
       return ES_ERROR_UNKNOWN;
@@ -562,6 +575,14 @@ static es_status _es_tools_build_response(osip_message_t       *req,
    /* Set User-Agent header */
    osip_message_set_user_agent(msg, PACKAGE_STRING);
 
+   osip_message_set_organization(msg, PACKAGE_STRING);
+
+   osip_message_set_max_forwards(msg, "70");
+
+   osip_message_set_subject(msg, "Testing with " PACKAGE_STRING);
+
+   osip_message_set_server(msg, PACKAGE_STRING " Server");
+
    *resp = msg;
 
    return ES_OK;
@@ -663,6 +684,11 @@ static void _es_internal_message_cb(int                     type,
 
    case OSIP_IST_STATUS_2XX_SENT: {
       ESIP_TRACE(ESIP_LOG_INFO,"OSIP_IST_STATUS_2XX_SENT");
+      osip_dialog_t *dialog = NULL;
+      if (osip_dialog_init_as_uas (&dialog, tr->orig_request, msg) != OSIP_SUCCESS) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "Creating new dialog failed");
+         return;
+      }
    }
       break;
 
@@ -688,6 +714,7 @@ static void _es_internal_message_cb(int                     type,
          ESIP_TRACE(ESIP_LOG_ERROR, "Creating Response failed");
          return;
       }
+      osip_message_set_expires(_pResp, "120");
       osip_message_set_status_code(_pResp, SIP_OK);
       osip_message_set_reason_phrase(_pResp, osip_strdup("OK"));
       sendResp = 1;
