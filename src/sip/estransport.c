@@ -36,129 +36,144 @@
 
 #include "estransport.h"
 
+#define ES_TRANSPORT_MAGIC      0X20140921
+
 #define ES_TRANSPORT_DEFAULT_PORT     5060
 #define ES_TRANSPORT_MAX_BUFFER_SIZE  2048 //Baby jumbo frame max frame size
 
 struct es_transport_s {
-   int udp_socket;
-   struct event * evudpsock;
-   struct event_base * base;
+   /* Magic */
+   uint32_t                         magic;
+   int                              udp_socket;
+   struct event                     *evudpsock;
+   struct event_base                *base;
 
-   struct es_transport_callbacks_s callbacks;
+   struct es_transport_callbacks_s  callbacks;
 };
 
 /**
  * @brief Internal transport event handler
  * @return void
  */
-static void _es_transport_ev(
-      evutil_socket_t fd,
-      short event,
-      void * arg);
+static void _es_transport_ev(evutil_socket_t fd,
+                             short event,
+                             void * arg);
 
 /**
  * @brief Bind a socket
  * @return ES_OK on success
  * @note Only IPv4 supported
  */
-static es_status _es_bind_socket(
-      int sock,
-      const char * ipv4addr,
-      const unsigned int port);
+static es_status _es_bind_socket(int sock,
+                                 const char * ipv4addr,
+                                 const unsigned int port);
 
-es_status es_transport_init(
-      OUT es_transport_t  **  ctx,
-      IN  struct event_base  * loop)
+es_status es_transport_init(es_transport_t  **pCtx,
+                            struct event_base  *pBase)
 {
-   struct es_transport_s * _ctx = NULL;
+   struct es_transport_s * _pCtx = NULL;
 
-   if (loop == NULL) {
+   if (pBase == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Transport Loop not valid");
       return ES_ERROR_NULLPTR;
    }
 
-   _ctx = (struct es_transport_s *) malloc(sizeof(struct es_transport_s));
-   if (_ctx == NULL) {
+   _pCtx = (struct es_transport_s *) malloc(sizeof(struct es_transport_s));
+   if (_pCtx == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Initialisation failed");
       return ES_ERROR_OUTOFRESOURCES;
    }
 
-   memset(_ctx, 0, sizeof(struct es_transport_s));
+   _pCtx->magic = ES_TRANSPORT_MAGIC;
 
-   _ctx->udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
-   if (_ctx->udp_socket == -1) {
+   memset(_pCtx, 0, sizeof(struct es_transport_s));
+
+   _pCtx->udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+   if (_pCtx->udp_socket == -1) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not create socket");
-      free(_ctx);
+      free(_pCtx);
       return ES_ERROR_NETWORK_PROBLEM;
    }
 
-   _ctx->base = loop;
+   _pCtx->base = pBase;
 
-   evutil_make_socket_nonblocking(_ctx->udp_socket);
+   evutil_make_socket_nonblocking(_pCtx->udp_socket);
 
-   *ctx = _ctx;
+   *pCtx = _pCtx;
    return ES_OK;
 }
 
-es_status es_transport_destroy(
-      IN es_transport_t * ctx)
+es_status es_transport_destroy(es_transport_t *pCtx)
 {
-   if (ctx == NULL) {
-      return ES_ERROR_NULLPTR;
-   }
+   struct es_transport_s * _pCtx = (struct es_transport_s *) pCtx;
 
-   close(ctx->udp_socket);
-
-   memset(ctx, 0, sizeof(struct es_transport_s));
-
-   free(ctx);
-
-   return ES_OK;
-}
-
-es_status es_transport_start(
-      IN es_transport_t * ctx)
-{
-   struct es_transport_s * _ctx = (struct es_transport_s *) ctx;
-
-   if (ctx == NULL) {
+   if (_pCtx == (struct es_transport_s *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
       return ES_ERROR_NULLPTR;
    }
 
-   if (_es_bind_socket(_ctx->udp_socket, NULL, ES_TRANSPORT_DEFAULT_PORT) != ES_OK) {
+   if (_pCtx->magic != ES_TRANSPORT_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
+
+   close(_pCtx->udp_socket);
+
+   memset(_pCtx, 0, sizeof(struct es_transport_s));
+
+   free(_pCtx);
+
+   return ES_OK;
+}
+
+es_status es_transport_start(es_transport_t *pCtx)
+{
+   struct es_transport_s * _pCtx = (struct es_transport_s *) pCtx;
+
+   if (_pCtx == (struct es_transport_s *)0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_pCtx->magic != ES_TRANSPORT_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_es_bind_socket(_pCtx->udp_socket, NULL, ES_TRANSPORT_DEFAULT_PORT) != ES_OK) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not bind on socket");
-      free(_ctx);
       return ES_ERROR_NETWORK_PROBLEM;
    }
 
-   _ctx->evudpsock = event_new(ctx->base, _ctx->udp_socket,
-                               (EV_READ|EV_PERSIST), _es_transport_ev, (void *)_ctx);
-   if (_ctx->evudpsock == NULL) {
+   _pCtx->evudpsock = event_new(pCtx->base, _pCtx->udp_socket,
+                               (EV_READ|EV_PERSIST), _es_transport_ev, (void *)_pCtx);
+   if (_pCtx->evudpsock == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not create event for socket");
-      free(_ctx);
       return ES_ERROR_UNKNOWN;
    }
 
    /* set priority */
-   if (event_priority_set(_ctx->evudpsock, 0) != 0) {
+   if (event_priority_set(_pCtx->evudpsock, 0) != 0) {
       ESIP_TRACE(ESIP_LOG_WARNING, "Can not set priority event for socket");
    }
 
-   if (event_add(_ctx->evudpsock, NULL) != 0) {
+   if (event_add(_pCtx->evudpsock, NULL) != 0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not make socket event pending");
-      free(_ctx);
       return ES_ERROR_UNKNOWN;
    }
 
    return ES_OK;
 }
 
-es_status es_transport_stop(
-      IN es_transport_t *pCtx)
+es_status es_transport_stop(es_transport_t *pCtx)
 {
    struct es_transport_s * _pCtx = (struct es_transport_s *)pCtx;
    if (_pCtx == (struct es_transport_s *)0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_pCtx->magic != ES_TRANSPORT_MAGIC) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
       return ES_ERROR_NULLPTR;
    }
@@ -172,64 +187,82 @@ es_status es_transport_stop(
    return ES_OK;
 }
 
-es_status es_transport_set_callbacks(
-      IN es_transport_t * _ctx,
-      IN struct es_transport_callbacks_s * cs)
+es_status es_transport_set_callbacks(es_transport_t * pCtx,
+                                     struct es_transport_callbacks_s * pCbCtx)
 {
-   struct es_transport_s * ctx = (struct es_transport_s *)_ctx;
+   struct es_transport_s * _pCtx = (struct es_transport_s *)pCtx;
 
-   if ((cs == NULL) || (ctx == NULL)) {
-      return ES_ERROR_NULLPTR;
-   }
-
-   ctx->callbacks.event_cb   = cs->event_cb;
-   ctx->callbacks.msg_recv_cb  = cs->msg_recv_cb;
-   ctx->callbacks.user_data  = cs->user_data;
-
-   return ES_OK;
-}
-
-es_status es_transport_get_udp_socket(
-      IN    es_transport_t * _ctx,
-      OUT   int    *   fd)
-{
-   struct es_transport_s * ctx = (struct es_transport_s *)_ctx;
-
-   if (ctx == NULL) {
+   if ((pCbCtx == (struct es_transport_callbacks_s *)0) || (_pCtx == (struct es_transport_s *)0)) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
       return ES_ERROR_NULLPTR;
    }
 
-   if (ctx->udp_socket > 0) {
-      *fd = _ctx->udp_socket;
+   if (_pCtx->magic != ES_TRANSPORT_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
+
+   _pCtx->callbacks.event_cb   = pCbCtx->event_cb;
+   _pCtx->callbacks.msg_recv_cb  = pCbCtx->msg_recv_cb;
+   _pCtx->callbacks.user_data  = pCbCtx->user_data;
+
+   return ES_OK;
+}
+
+es_status es_transport_get_udp_socket(es_transport_t *pCtx,
+                                      int    *fd)
+{
+   struct es_transport_s * _pCtx = (struct es_transport_s *)pCtx;
+
+   if (_pCtx == (struct es_transport_s *)0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_pCtx->magic != ES_TRANSPORT_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_pCtx->udp_socket > 0) {
+      *fd = pCtx->udp_socket;
       return ES_OK;
    }
 
    return ES_ERROR_UNINITIALIZED;
 }
 
-es_status es_transport_send(
-      IN es_transport_t * ctx,
-      IN char * ip,
-      IN int port,
-      IN const char * msg,
-      IN size_t size)
+es_status es_transport_send(es_transport_t *pCtx,
+                            char * ip,
+                            int port,
+                            const char * msg,
+                            size_t size)
 {
    struct sockaddr_in saddr;
+   struct es_transport_s *_pCtx = (struct es_transport_s *)pCtx;
+
+   if (_pCtx == (struct es_transport_s *)0) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
+
+   if (_pCtx->magic != ES_TRANSPORT_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
+      return ES_ERROR_NULLPTR;
+   }
 
    saddr.sin_family = AF_INET;
    saddr.sin_addr.s_addr = inet_addr(ip);
    saddr.sin_port = htons(port);
 
-   sendto(ctx->udp_socket, msg, size, 0, (const struct sockaddr *)&saddr, sizeof(saddr));
+   sendto(_pCtx->udp_socket, msg, size, 0, (const struct sockaddr *)&saddr, sizeof(saddr));
 
    return ES_OK;
 }
 
-static es_status _es_bind_socket(
-      int sock,
-      const char * ipv4addr,
-      const unsigned int port)
+static es_status _es_bind_socket(int sock,
+                                 const char * ipv4addr,
+                                 const unsigned int port)
 {
    struct sockaddr_in addr;
 
@@ -246,15 +279,19 @@ static es_status _es_bind_socket(
    return ES_OK;
 }
 
-static void _es_transport_ev(
-      evutil_socket_t fd,
-      short event,
-      void * arg)
+static void _es_transport_ev(evutil_socket_t fd,
+                             short event,
+                             void * arg)
 {
-   struct es_transport_s * ctx = (struct es_transport_s *)arg;
+   struct es_transport_s * _pCtx = (struct es_transport_s *)arg;
 
-   if (ctx == NULL) {
+   if (_pCtx == (struct es_transport_s *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Transaction Ctx invalid");
+      return;
+   }
+
+   if (_pCtx->magic != ES_TRANSPORT_MAGIC) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Transport Ctx not valid");
       return;
    }
 
@@ -274,11 +311,11 @@ static void _es_transport_ev(
                  ntohs(remote_addr.sin_port),
                  (unsigned int)buf_len);
 
-      if ((buf_len > 0) && (ctx->callbacks.msg_recv_cb != NULL)) {
-         ctx->callbacks.msg_recv_cb(ctx, buf, buf_len, ctx->callbacks.user_data);
+      if ((buf_len > 0) && (_pCtx->callbacks.msg_recv_cb != NULL)) {
+         _pCtx->callbacks.msg_recv_cb(_pCtx, buf, buf_len, _pCtx->callbacks.user_data);
       }
-      if (ctx->callbacks.event_cb != NULL) {
-         ctx->callbacks.event_cb(ctx, 1, 0, ctx->callbacks.user_data);
+      if (_pCtx->callbacks.event_cb != NULL) {
+         _pCtx->callbacks.event_cb(_pCtx, 1, 0, _pCtx->callbacks.user_data);
       }
    }
 }
