@@ -237,6 +237,8 @@ es_status es_cli_init(es_cli_t           **ppCtx,
       return ES_ERROR_OUTOFRESOURCES;
    }
 
+   memset(_pCtx, 0, sizeof(struct es_cli_s));
+
    if (pBase == (struct event_base *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "");
       return ES_ERROR_NULLPTR;

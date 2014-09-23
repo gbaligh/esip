@@ -36,6 +36,7 @@
 #include "log.h"
 
 #include "estransport.h"
+#include "esomsg.h"
 #include "esosip.h"
 
 #define ES_OSIP_MAGIC      0X20140607
@@ -51,6 +52,8 @@ struct es_osip_s {
    struct event_base         *base;
    /* Pending Event to handle */
    osip_list_t               pendingEv;
+   /* Dialog list */
+   osip_list_t               osipDialog;
 };
 
 /*******************************************************************************
@@ -115,6 +118,8 @@ es_status es_osip_init(es_osip_t          **pCtx,
       return ES_ERROR_OUTOFRESOURCES;
    }
 
+   memset(_pCtx, 0, sizeof(struct es_osip_s));
+
    /* Set Magic */
    _pCtx->magic = ES_OSIP_MAGIC;
 
@@ -152,6 +157,14 @@ es_status es_osip_init(es_osip_t          **pCtx,
    /* list of pending event */
    if (osip_list_init(&_pCtx->pendingEv) != OSIP_SUCCESS) {
       ESIP_TRACE(ESIP_LOG_ERROR, "List for pending event initialization failed");
+      free(_pCtx->osip);
+      free(_pCtx);
+      return ES_ERROR_OUTOFRESOURCES;
+   }
+
+   /* list of dialog */
+   if (osip_list_init(&_pCtx->osipDialog) != OSIP_SUCCESS) {
+      ESIP_TRACE(ESIP_LOG_ERROR, "Dialog list failed");
       free(_pCtx->osip);
       free(_pCtx);
       return ES_ERROR_OUTOFRESOURCES;
@@ -276,16 +289,18 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
       return ES_ERROR_NETWORK_PROBLEM;
    }
 
-   ESIP_TRACE(ESIP_LOG_INFO,"received SIP type %s:%s",
-              (MSG_IS_REQUEST(evt->sip))? "REQ" : "RES",
-              (MSG_IS_REQUEST(evt->sip) ?
-                  ((evt->sip->sip_method)?
-                      evt->sip->sip_method : "NULL") :
-                  ((evt->sip->reason_phrase) ?
-                      evt->sip->reason_phrase : "NULL")));
+   ESIP_TRACE(ESIP_LOG_INFO,"received SIP type %s: %s",
+              (MSG_IS_REQUEST(evt->sip))? "REQUEST" : "RESPONSE",
+              (MSG_IS_REQUEST(evt->sip) ? ((evt->sip->sip_method)    ? evt->sip->sip_method    : "NULL") :
+                                          ((evt->sip->reason_phrase) ? evt->sip->reason_phrase : "NULL")));
 
    if (EVT_IS_RCV_STATUS_1XX(evt)) {
-      /* TODO stop retransmit ! */
+      tr = osip_transaction_find(&_pCtx->osip->osip_ist_transactions, evt);
+      if (tr == NULL) {
+         ESIP_TRACE(ESIP_LOG_INFO, "No transaction for MESSAGE event");
+         free(evt);
+         return ES_ERROR_ILLEGAL_ACTION;
+      }
    }
 
    if( EVT_IS_RCV_STATUS_2XX(evt) || EVT_IS_RCV_STATUS_3456XX(evt)) {
@@ -298,7 +313,22 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
    }
 
    if (EVT_IS_RCV_ACK(evt)) {
-       /* TODO Look for Dialog */
+      int _i = 0;
+      osip_dialog_t *dialog = NULL;
+      for (_i=0; !osip_list_eol(&_pCtx->osipDialog, _i); ++_i, dialog=NULL) {
+         dialog = (osip_dialog_t *)osip_list_get(&_pCtx->osipDialog, _i);
+         if (osip_dialog_match_as_uas(dialog, evt->sip) == OSIP_SUCCESS) {
+            ESIP_TRACE(ESIP_LOG_DEBUG, "Dialog for ACK found [STATE:%d]", dialog->state);
+            break;
+         }
+      }
+
+      if (dialog != NULL) {
+         osip_stop_retransmissions_from_dialog(_pCtx->osip, dialog);
+      }
+
+      free(evt);
+      return ES_OK;
    }
 
    if (EVT_IS_RCV_INVITE(evt)) {
@@ -321,34 +351,38 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
       }
    }
 
-   /* Set Out Socket for the new Transaction, used to send response */
-   {
-      int fd = -1;
-      es_transport_get_udp_socket(_pCtx->transportCtx, &fd);
-      if (osip_transaction_set_out_socket(tr, fd) != OSIP_SUCCESS) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "Setting socket descriptor failed");
+   if (tr != NULL) {
+      /* Set Out Socket for the new Transaction, used to send response */
+      {
+         int fd = -1;
+         es_transport_get_udp_socket(_pCtx->transportCtx, &fd);
+         if (osip_transaction_set_out_socket(tr, fd) != OSIP_SUCCESS) {
+            ESIP_TRACE(ESIP_LOG_ERROR, "Setting socket descriptor failed");
+            osip_transaction_free(tr);
+            free(evt);
+            return ES_ERROR_UNKNOWN;
+         }
+      }
+
+      /* Set context reference into Transaction struct */
+      osip_transaction_set_your_instance(tr, (void *)_pCtx);
+
+      /* add a new OSip event into FiFo list */
+      if (osip_transaction_add_event(tr, evt)) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "adding event failed");
          osip_transaction_free(tr);
+         free(evt);
+         return ES_ERROR_OUTOFRESOURCES;
+      }
+
+      /* Send notification using event for the transaction */
+      if (_es_osip_wakeup(_pCtx) != ES_OK) {
+         ESIP_TRACE(ESIP_LOG_ERROR, "sending event failed");
          free(evt);
          return ES_ERROR_UNKNOWN;
       }
-   }
-
-   /* Set context reference into Transaction struct */
-   osip_transaction_set_your_instance(tr, (void *)_pCtx);
-
-   /* add a new OSip event into FiFo list */
-   if (osip_transaction_add_event(tr, evt)) {
-      ESIP_TRACE(ESIP_LOG_ERROR, "adding event failed");
-      osip_transaction_free(tr);
+   } else {
       free(evt);
-      return ES_ERROR_OUTOFRESOURCES;
-   }
-
-   /* Send notification using event for the transaction */
-   if (_es_osip_wakeup(_pCtx) != ES_OK) {
-      ESIP_TRACE(ESIP_LOG_ERROR, "sending event failed");
-      free(evt);
-      return ES_ERROR_UNKNOWN;
    }
 
    /* Look for existant Dialog */
@@ -500,94 +534,6 @@ static es_status _es_osip_wakeup(struct es_osip_s * pCtx)
    return ES_OK;
 }
 
-static es_status _es_tools_build_response(osip_message_t       *req,
-                                          const unsigned int   code,
-                                          osip_message_t       **resp)
-{
-   osip_message_t * msg = NULL;
-   unsigned int random_tag = 0;
-   char str_random[256];
-
-   /* Check validity */
-   {
-      if (req->to == NULL) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "empty To in request header");
-         return ES_ERROR_NULLPTR;
-      }
-      if (req->from == NULL) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "empty From in request header");
-         return ES_ERROR_NULLPTR;
-      }
-   }
-
-   /* Create an emty message */
-   osip_message_init(&msg);
-
-   /* Set SIP Version */
-   osip_message_set_version(msg, osip_strdup("SIP/2.0"));
-
-   /* Set status code */
-   if (code > 0) {
-      osip_message_set_status_code(msg, code);
-      osip_message_set_reason_phrase(msg, osip_strdup(osip_message_get_reason(code)));
-   }
-
-   /* Set From header */
-   osip_from_clone(req->from, &msg->from);
-
-   /* Set To header */
-   osip_to_clone(req->to, &msg->to);
-
-   {
-      osip_uri_param_t *tag = NULL;
-      osip_to_get_tag(msg->to, &tag);
-      if (tag == NULL) {
-         random_tag = osip_build_random_number();
-         snprintf(str_random, sizeof(str_random), "%d", random_tag);
-         osip_to_set_tag(msg->to, osip_strdup(str_random));
-      }
-   }
-
-   /* Set CSeq header */
-   osip_cseq_clone(req->cseq, &msg->cseq);
-
-   /* Set Call-Id header */
-   osip_call_id_clone(req->call_id, &msg->call_id);
-
-   /* Handle Via header */
-   {
-      int pos = 0;//copy vias from request to response
-      while (!osip_list_eol(&req->vias, pos)) {
-         osip_via_t * via = NULL;
-         osip_via_t * via2 = NULL;
-
-         via = (osip_via_t *) osip_list_get(&req->vias, pos);
-         int i = osip_via_clone(via, &via2);
-         if (i != 0) {
-            osip_message_free(msg);
-            return i;
-         }
-         osip_list_add(&(msg->vias), via2, -1);
-         pos++;
-      }
-   }
-
-   /* Set User-Agent header */
-   osip_message_set_user_agent(msg, PACKAGE_STRING);
-
-   osip_message_set_organization(msg, PACKAGE_STRING);
-
-   osip_message_set_max_forwards(msg, "70");
-
-   osip_message_set_subject(msg, "Testing with " PACKAGE_STRING);
-
-   osip_message_set_server(msg, PACKAGE_STRING " Server");
-
-   *resp = msg;
-
-   return ES_OK;
-}
-
 static int _es_internal_send_msg_cb(osip_transaction_t   *tr,
                                     osip_message_t       *msg,
                                     char                 *addr,
@@ -667,12 +613,10 @@ static void _es_internal_message_cb(int                     type,
 
    case OSIP_IST_INVITE_RECEIVED: {
       ESIP_TRACE(ESIP_LOG_INFO,"OSIP_IST_INVITE_RECEIVED");
-      if (_es_tools_build_response(msg, 0, &_pResp) != ES_OK) {
+      if (es_msg_initResponse(&_pResp, SIP_OK, msg) != ES_OK) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Creating Response failed");
          return;
       }
-      osip_message_set_status_code(_pResp, SIP_OK);
-      osip_message_set_reason_phrase(_pResp, osip_strdup("OK"));
       sendResp = 1;
    }
       break;
@@ -684,10 +628,15 @@ static void _es_internal_message_cb(int                     type,
 
    case OSIP_IST_STATUS_2XX_SENT: {
       ESIP_TRACE(ESIP_LOG_INFO,"OSIP_IST_STATUS_2XX_SENT");
-      osip_dialog_t *dialog = NULL;
-      if (osip_dialog_init_as_uas (&dialog, tr->orig_request, msg) != OSIP_SUCCESS) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "Creating new dialog failed");
-         return;
+      if (MSG_IS_RESPONSE_FOR(msg, "INVITE") && !MSG_TEST_CODE(msg, 100)) {
+         osip_dialog_t *dialog = NULL;
+         if (osip_dialog_init_as_uas(&dialog, tr->orig_request, msg) != OSIP_SUCCESS) {
+            ESIP_TRACE(ESIP_LOG_ERROR, "Creating new dialog failed");
+            return;
+         }
+         osip_dialog_set_instance(dialog, _pCtx);
+         osip_dialog_update_route_set_as_uas(dialog, tr->orig_request);
+         osip_list_add(&_pCtx->osipDialog, (void *)dialog, 0);
       }
    }
       break;
@@ -710,26 +659,30 @@ static void _es_internal_message_cb(int                     type,
    case OSIP_NIST_REGISTER_RECEIVED: {
       /* TODO: Send it to REGISTRAR module */
       ESIP_TRACE(ESIP_LOG_INFO,"OSIP_NIST_REGISTER_RECEIVED");
-      if (_es_tools_build_response(msg, 0, &_pResp) != ES_OK) {
+      if (es_msg_initResponse(&_pResp, SIP_OK, msg) != ES_OK) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Creating Response failed");
          return;
       }
-      osip_message_set_expires(_pResp, "120");
-      osip_message_set_status_code(_pResp, SIP_OK);
-      osip_message_set_reason_phrase(_pResp, osip_strdup("OK"));
       sendResp = 1;
    }
       break;
 
    case OSIP_NIST_BYE_RECEIVED: {
-      /* TODO: Send it to REGISTRAR module */
+      int _i = 0;
+      osip_dialog_t *dialog = NULL;
+      for (_i=0; !osip_list_eol(&_pCtx->osipDialog, _i); ++_i, dialog=NULL) {
+         dialog = (osip_dialog_t *)osip_list_get(&_pCtx->osipDialog, _i);
+         if (osip_dialog_match_as_uas(dialog, msg) == OSIP_SUCCESS) {
+            ESIP_TRACE(ESIP_LOG_DEBUG, "Dialog for FOUND found [STATE:%d]", dialog->state);
+            break;
+         }
+      }
+
       ESIP_TRACE(ESIP_LOG_INFO,"OSIP_NIST_BYE_RECEIVED");
-      if (_es_tools_build_response(msg, 0, &_pResp) != ES_OK) {
+      if (es_msg_initResponse(&_pResp, SIP_OK, msg) != ES_OK) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Creating Response failed");
          return;
       }
-      osip_message_set_status_code(_pResp, SIP_OK);
-      osip_message_set_reason_phrase(_pResp, osip_strdup("OK"));
       sendResp = 1;
    }
       break;
