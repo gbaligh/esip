@@ -84,9 +84,9 @@ es_status es_transport_init(es_transport_t  **pCtx,
       return ES_ERROR_OUTOFRESOURCES;
    }
 
-   _pCtx->magic = ES_TRANSPORT_MAGIC;
-
    memset(_pCtx, 0, sizeof(struct es_transport_s));
+
+   _pCtx->magic = ES_TRANSPORT_MAGIC;
 
    _pCtx->udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
    if (_pCtx->udp_socket == -1) {

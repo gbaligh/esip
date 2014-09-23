@@ -55,96 +55,88 @@ es_status es_msg_initRequest(es_msg_t **ppCtx)
    _pCtx->magic = ES_OMSG_MAGIC;
 
    {
-      osip_message_t *pMsg = NULL;
+      osip_message_t *_pMsg = NULL;
 
       /* Create an emty message */
-      if (osip_message_init(&pMsg) != OSIP_SUCCESS) {
+      if (osip_message_init(&_pMsg) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
          free(_pCtx);
          return ES_ERROR_OUTOFRESOURCES;
       }
 
       /* Set SIP Version */
-      osip_message_set_version(pMsg, osip_strdup("SIP/2.0"));
+      osip_message_set_version(_pMsg, osip_strdup("SIP/2.0"));
 
       /* Init VIA header */
       {
          osip_via_t *viaHdr = NULL;
          if (osip_via_init(&viaHdr) != OSIP_SUCCESS) {
             ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-            osip_message_free(pMsg);
+            osip_message_free(_pMsg);
             free(_pCtx);
             return ES_ERROR_OUTOFRESOURCES;
          }
 
-         if (osip_list_add(&pMsg->vias, viaHdr, -1) != OSIP_SUCCESS) {
+         if (osip_list_add(&_pMsg->vias, viaHdr, -1) != OSIP_SUCCESS) {
             ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-            osip_message_free(pMsg);
+            osip_message_free(_pMsg);
             free(_pCtx);
             return ES_ERROR_OUTOFRESOURCES;
          }
       }
 
       /* Init From header */
-      if (osip_from_init(&pMsg->from) != OSIP_SUCCESS) {
+      if (osip_from_init(&_pMsg->from) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(pMsg);
+         osip_message_free(_pMsg);
          free(_pCtx);
          return ES_ERROR_OUTOFRESOURCES;
       }
 
       /* Init To header */
-      if (osip_to_init(&pMsg->to) != OSIP_SUCCESS) {
+      if (osip_to_init(&_pMsg->to) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(pMsg);
+         osip_message_free(_pMsg);
          free(_pCtx);
          return ES_ERROR_OUTOFRESOURCES;
       }
 
       /* Set CSeq header */
-      if (osip_cseq_init(&pMsg->cseq) != OSIP_SUCCESS) {
+      if (osip_cseq_init(&_pMsg->cseq) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(pMsg);
+         osip_message_free(_pMsg);
          free(_pCtx);
          return ES_ERROR_OUTOFRESOURCES;
       }
 
       /* Set Call-Id header */
-      if (osip_call_id_init(&pMsg->call_id) != OSIP_SUCCESS) {
+      if (osip_call_id_init(&_pMsg->call_id) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(pMsg);
+         osip_message_free(_pMsg);
          free(_pCtx);
          return ES_ERROR_OUTOFRESOURCES;
       }
 
       /* Set User-Agent header */
-      if (osip_message_set_user_agent(pMsg, osip_strdup(PACKAGE_STRING)) != OSIP_SUCCESS) {
+      if (osip_message_set_user_agent(_pMsg, osip_strdup(PACKAGE_STRING)) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(pMsg);
+         osip_message_free(_pMsg);
          free(_pCtx);
          return ES_ERROR_OUTOFRESOURCES;
       }
 
-      _pCtx->omsg = pMsg;
+      _pCtx->omsg = _pMsg;
    }
 
    *ppCtx = _pCtx;
    return ES_OK;
 }
 
-es_status es_msg_initResponse(es_msg_t            **ppCtx,
+es_status es_msg_initResponse(osip_message_t      **ppRes,
                               int                 respCode,
                               osip_message_t      *req)
 {
-   osip_message_t * pMsg = NULL;
-
-   struct es_msg_s *_pCtx = (struct es_msg_s *) malloc(sizeof(struct es_msg_s));
-   if (_pCtx == (struct es_msg_s *)0) {
-      ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-      return ES_ERROR_OUTOFRESOURCES;
-   }
-
-   _pCtx->magic = ES_OMSG_MAGIC;
+   osip_message_t *_pMsg = NULL;
 
    {
       /* Check validity */
@@ -160,52 +152,51 @@ es_status es_msg_initResponse(es_msg_t            **ppCtx,
       }
 
       /* Create an emty message */
-      if (osip_message_init(&pMsg) != OSIP_SUCCESS) {
+      if (osip_message_init(&_pMsg) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         free(_pCtx);
          return ES_ERROR_OUTOFRESOURCES;
       }
 
       /* Set SIP Version */
-      osip_message_set_version(pMsg, osip_strdup("SIP/2.0"));
+      osip_message_set_version(_pMsg, osip_strdup("SIP/2.0"));
+
+      osip_message_set_max_forwards(_pMsg, "70");
 
       /* Set status code */
       if (respCode > 0) {
-         osip_message_set_status_code(pMsg, respCode);
-         osip_message_set_reason_phrase(pMsg, osip_strdup(osip_message_get_reason(respCode)));
+         osip_message_set_status_code(_pMsg, respCode);
+         osip_message_set_reason_phrase(_pMsg, osip_strdup(osip_message_get_reason(respCode)));
       }
 
       /* Set From header */
-      if (osip_from_clone(req->to, &pMsg->from) != OSIP_SUCCESS) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(pMsg);
-         free(_pCtx);
-         return ES_ERROR_OUTOFRESOURCES;
-      }
+      osip_from_clone(req->from, &_pMsg->from);
 
       /* Set To header */
+      osip_to_clone(req->to, &_pMsg->to);
+
       {
-         unsigned int randTag = 0;
-         char randTagStr[256];
-         osip_to_clone(req->from, &pMsg->to);
-         randTag = osip_build_random_number();
-         snprintf(randTagStr, sizeof(randTagStr), "%d", randTag);
-         osip_to_set_tag(pMsg->to, osip_strdup(randTagStr));
+         osip_uri_param_t *tag = NULL;
+         unsigned int random_tag = 0;
+         char str_random[256];
+         osip_to_get_tag(_pMsg->to, &tag);
+         if (tag == NULL) {
+            random_tag = osip_build_random_number();
+            snprintf(str_random, sizeof(str_random), "%d", random_tag);
+            osip_to_set_tag(_pMsg->to, osip_strdup(str_random));
+         }
       }
 
       /* Set CSeq header */
-      if (osip_cseq_clone(req->cseq, &pMsg->cseq) != OSIP_SUCCESS) {
+      if (osip_cseq_clone(req->cseq, &_pMsg->cseq) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(pMsg);
-         free(_pCtx);
+         osip_message_free(_pMsg);
          return ES_ERROR_OUTOFRESOURCES;
       }
 
       /* Set Call-Id header */
-      if (osip_call_id_clone(req->call_id, &pMsg->call_id) != OSIP_SUCCESS) {
+      if (osip_call_id_clone(req->call_id, &_pMsg->call_id) != OSIP_SUCCESS) {
          ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(pMsg);
-         free(_pCtx);
+         osip_message_free(_pMsg);
          return ES_ERROR_OUTOFRESOURCES;
       }
 
@@ -219,21 +210,21 @@ es_status es_msg_initResponse(es_msg_t            **ppCtx,
             via = (osip_via_t *) osip_list_get(&req->vias, pos);
             if (osip_via_clone(via, &via2) != OSIP_SUCCESS) {
                ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-               osip_message_free(pMsg);
-               free(_pCtx);
+               osip_message_free(_pMsg);
                return ES_ERROR_OUTOFRESOURCES;
             }
-            osip_list_add(&(pMsg->vias), via2, -1);
+            osip_list_add(&(_pMsg->vias), via2, -1);
             pos++;
          }
       }
 
       /* Set User-Agent header */
-      osip_message_set_user_agent(pMsg, osip_strdup(PACKAGE));
+      osip_message_set_user_agent(_pMsg, PACKAGE);
+      osip_message_set_organization(_pMsg, PACKAGE_STRING);
+      osip_message_set_subject(_pMsg, "Testing with " PACKAGE_STRING);
+      osip_message_set_server(_pMsg, PACKAGE_STRING " Server");
    }
 
-   _pCtx->omsg = pMsg;
-
-   *ppCtx = _pCtx;
+   *ppRes = _pMsg;
    return ES_OK;
 }
