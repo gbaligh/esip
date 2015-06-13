@@ -70,6 +70,7 @@ config.h.in
 stamp-h1
 test-driver
 *.trs
+ltmain.sh
 
 # Object files
 *.o
