@@ -71,9 +71,13 @@ stamp-h1
 test-driver
 *.trs
 ltmain.sh
+m4
+libtool
 
 # Object files
 *.o
+.libs
+.dirstamp
 
 # Log files
 *.log

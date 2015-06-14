@@ -254,7 +254,9 @@ es_status es_osip_deinit(es_osip_t *pCtx)
    osip_list_special_free(&_pCtx->pendingEv, _es_osip_list_freeEl);
 
    es_transport_destroy(_pCtx->transportCtx);
+   
    osip_release(_pCtx->osip);
+   
    free(_pCtx);
 
    return ES_OK;
@@ -264,14 +266,14 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
                             IN const char    *buf,
                             IN unsigned int  size)
 {
-   osip_event_t * evt = NULL;
+   osip_event_t * evt = (osip_event_t *)0;
    struct es_osip_s *_pCtx = (struct es_osip_s *)pCtx;
-   osip_transaction_t *tr = NULL;
+   osip_transaction_t *tr = (osip_transaction_t *)0;
 
    ESIP_TRACE(ESIP_LOG_DEBUG, "Enter");
 
    /* Check Context */
-   if (_pCtx == NULL) {
+   if (_pCtx == (struct es_osip_s *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "SIP ctx is null");
       return ES_ERROR_NULLPTR;
    }
@@ -284,7 +286,7 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
 
    /* Parse buffer and check if it's really a SIP Message */
    evt = osip_parse(buf, size);
-   if (evt == NULL) {
+   if (evt == (osip_event_t *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Error creating OSip event");
       return ES_ERROR_NETWORK_PROBLEM;
    }
@@ -296,7 +298,7 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
 
    if (EVT_IS_RCV_STATUS_1XX(evt)) {
       tr = osip_transaction_find(&_pCtx->osip->osip_ist_transactions, evt);
-      if (tr == NULL) {
+      if (tr == (osip_transaction_t *)0) {
          ESIP_TRACE(ESIP_LOG_INFO, "No transaction for MESSAGE event");
          free(evt);
          return ES_ERROR_ILLEGAL_ACTION;
@@ -305,7 +307,7 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
 
    if( EVT_IS_RCV_STATUS_2XX(evt) || EVT_IS_RCV_STATUS_3456XX(evt)) {
       tr = osip_transaction_find(&_pCtx->osip->osip_ist_transactions, evt);
-      if (tr == NULL) {
+      if (tr == (osip_transaction_t *)0) {
          ESIP_TRACE(ESIP_LOG_INFO, "No transaction for MESSAGE event");
          free(evt);
          return ES_ERROR_ILLEGAL_ACTION;
@@ -314,8 +316,8 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
 
    if (EVT_IS_RCV_ACK(evt)) {
       int _i = 0;
-      osip_dialog_t *dialog = NULL;
-      for (_i=0; !osip_list_eol(&_pCtx->osipDialog, _i); ++_i, dialog=NULL) {
+      osip_dialog_t *dialog = (osip_dialog_t *)0;
+      for (_i=0; !osip_list_eol(&_pCtx->osipDialog, _i); ++_i, dialog=(osip_dialog_t *)0) {
          dialog = (osip_dialog_t *)osip_list_get(&_pCtx->osipDialog, _i);
          if (osip_dialog_match_as_uas(dialog, evt->sip) == OSIP_SUCCESS) {
             ESIP_TRACE(ESIP_LOG_DEBUG, "Dialog for ACK found [STATE:%d]", dialog->state);
@@ -323,7 +325,7 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
          }
       }
 
-      if (dialog != NULL) {
+      if (dialog != (osip_dialog_t *)0); {
          osip_stop_retransmissions_from_dialog(_pCtx->osip, dialog);
       }
 
@@ -351,7 +353,7 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
       }
    }
 
-   if (tr != NULL) {
+   if (tr != (osip_transaction_t *)0) {
       /* Set Out Socket for the new Transaction, used to send response */
       {
          int fd = -1;
@@ -409,7 +411,7 @@ static void _es_transport_msg_cb(es_transport_t       *transp,
 {
    struct es_osip_s * ctx = (struct es_osip_s *)data;
 
-   if (ctx == NULL) {
+   if (ctx == (struct es_osip_s *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Context reference is invalid");
       return;
    }
@@ -501,14 +503,14 @@ static es_status _es_osip_wakeup(struct es_osip_s * pCtx)
    ESIP_TRACE(ESIP_LOG_DEBUG, "Enter");
 
    /* Check Context */
-   if (pCtx == NULL) {
+   if (pCtx == (struct es_osip_s *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "SIP ctx is null");
       return ES_ERROR_NULLPTR;
    }
 
    /* Dispatch a new event to unblock the base loop thread */
    _pEvSip = event_new(pCtx->base, -1, (EV_READ), _es_osip_loop, (void *)pCtx);
-   if (_pEvSip == NULL) {
+   if (_pEvSip == (struct event *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not create event for OSip stack");
       return ES_ERROR_OUTOFRESOURCES;
    }
@@ -542,10 +544,10 @@ static int _es_internal_send_msg_cb(osip_transaction_t   *tr,
 {
    char * buf = NULL;
    size_t buf_len = 0;
-   struct es_osip_s * _pCtx = NULL;
+   struct es_osip_s * _pCtx = (struct es_osip_s *)0;
 
    _pCtx = osip_transaction_get_your_instance(tr);
-   if (_pCtx == NULL) {
+   if (_pCtx == (struct es_osip_s *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
       return -1;
    }
@@ -555,9 +557,13 @@ static int _es_internal_send_msg_cb(osip_transaction_t   *tr,
       ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
       return -1;
    }
+
    osip_message_to_str(msg, &buf, &buf_len);
+   
    ESIP_TRACE(ESIP_LOG_DEBUG,"Sending \n=====>\n%s\n=====>", buf);
+   
    es_transport_send(_pCtx->transportCtx, addr, port, buf, buf_len);
+   
    free(buf);
    return OSIP_SUCCESS;
 }
@@ -590,15 +596,15 @@ static void _es_internal_message_cb(int                     type,
                                     osip_transaction_t      *tr,
                                     osip_message_t          *msg)
 {
-   struct es_osip_s * _pCtx = NULL;
-   osip_message_t *_pResp = NULL;
-   osip_event_t * _pEvt = NULL;
+   struct es_osip_s * _pCtx = (struct es_osip_s *)0;
+   osip_message_t *_pResp = (osip_message_t *)0;
+   osip_event_t * _pEvt = (osip_event_t *)0;
    int sendResp = 0;
 
    ESIP_TRACE(ESIP_LOG_DEBUG,"Enter: type %d", type);
 
    _pCtx = osip_transaction_get_your_instance(tr);
-   if (_pCtx == NULL) {
+   if (_pCtx == (struct es_osip_s *)0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Reference is invalid");
       return;
    }
@@ -713,7 +719,7 @@ static void _es_internal_message_cb(int                     type,
 
 static es_status _es_osip_set_internal_callbacks(struct es_osip_s * ctx)
 {
-   osip_t * osip = NULL;
+   osip_t * osip = (osip_t *)0;
    int i = 0;
 
    ESIP_TRACE(ESIP_LOG_DEBUG,"Enter");

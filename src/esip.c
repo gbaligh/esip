@@ -149,10 +149,6 @@ int main(const int argc, char *argv[])
       goto ERROR_EXIT;
    }
 
-   /* free cfg */
-   event_config_free(ctx.cfg);
-   ctx.cfg = NULL;
-
    /* Set MAX priority */
    if (event_base_priority_init(ctx.base, 2) != 0) {
       ESIP_TRACE(ESIP_LOG_ERROR, "Can not set MAX priority in event loop");
@@ -210,10 +206,14 @@ ERROR_EXIT:
    ret = EXIT_FAILURE;
 
 EXIT:
-   event_free(ctx.evsig);
-   event_base_free(ctx.base);
+  /* free cfg */
+  event_config_free(ctx.cfg);
+  ctx.cfg = NULL;
 
-   return ret;
+  event_free(ctx.evsig);
+  event_base_free(ctx.base);
+
+  return ret;
 }
 
 // vim: noai:ts=2:sw=2

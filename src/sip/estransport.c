@@ -306,7 +306,7 @@ static void _es_transport_ev(evutil_socket_t fd,
 
       buf[buf_len] = '\0';
 
-      ESIP_TRACE(ESIP_LOG_DEBUG, "Packet recieved from %s:%d [Len: %d]",
+      ESIP_TRACE(ESIP_LOG_DEBUG, "Packet recieved from %s:%d [Len:%d]",
                  inet_ntoa(remote_addr.sin_addr),
                  ntohs(remote_addr.sin_port),
                  (unsigned int)buf_len);
@@ -314,6 +314,7 @@ static void _es_transport_ev(evutil_socket_t fd,
       if ((buf_len > 0) && (_pCtx->callbacks.msg_recv_cb != NULL)) {
          _pCtx->callbacks.msg_recv_cb(_pCtx, buf, buf_len, _pCtx->callbacks.user_data);
       }
+
       if (_pCtx->callbacks.event_cb != NULL) {
          _pCtx->callbacks.event_cb(_pCtx, 1, 0, _pCtx->callbacks.user_data);
       }

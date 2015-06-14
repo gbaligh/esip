@@ -15,26 +15,23 @@
  * along with esip.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ESCLI_H
-#define ESCLI_H
+#ifndef ESOMSG_H
+#define ESOMSG_H
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-/** @brief */
-typedef struct es_cli_s es_cli_t;
+typedef struct es_msg_s es_msg_t;
 
-es_status es_cli_init(es_cli_t **ppCtx,struct event_base  *pBase);
+es_status es_msg_initRequest(es_msg_t **ppCtx);
 
-es_status es_cli_start(es_cli_t *pCtx);
-
-es_status es_cli_stop(es_cli_t *pCtx);
-
-es_status es_cli_deinit(es_cli_t *pCtx);
+es_status es_msg_initResponse(osip_message_t      **ppRes,
+                              int                 respCode,
+                              osip_message_t      *req);
 
 #if defined(__cplusplus)
 }
 #endif /* __cplusplus */
 
-#endif // ESCLI_H
+#endif

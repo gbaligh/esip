@@ -1,6 +1,8 @@
 AC_PREREQ([2.69])
 AC_INIT([ESip], [0.0.1], [gasmibal@gmail.com])
 AC_CONFIG_HEADERS(src/inc/config.h)
+LT_INIT
+AC_CONFIG_MACRO_DIRS([m4])
 AM_INIT_AUTOMAKE
 
 # Checks for programs.

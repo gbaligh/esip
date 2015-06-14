@@ -164,7 +164,7 @@ static void _es_evconnlistener_cb(struct evconnlistener *pListner, evutil_socket
          return;
       }
 
-      evconnlistener_disable(_pCtx->listener);
+      //evconnlistener_disable(_pCtx->listener);
    }
 
 #if 0
