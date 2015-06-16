@@ -24,11 +24,9 @@ extern "C" {
 
 typedef struct es_msg_s es_msg_t;
 
-es_status es_msg_initRequest(es_msg_t **ppCtx);
+es_status es_msg_init(es_msg_t **ppCtx);
 
-es_status es_msg_initResponse(osip_message_t      **ppRes,
-                              int                 respCode,
-                              osip_message_t      *req);
+es_status es_msg_initResponse(osip_message_t **ppRes, int respCode, osip_message_t *req);
 
 #if defined(__cplusplus)
 }

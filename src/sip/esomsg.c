@@ -35,7 +35,7 @@
 #include "log.h"
 #include "esomsg.h"
 
-#define ES_OMSG_MAGIC      0X20140917
+#define ES_OMSG_MAGIC      0x20140917
 
 struct es_msg_s {
    /* Magic */
@@ -44,7 +44,7 @@ struct es_msg_s {
    osip_message_t            *omsg;
 };
 
-es_status es_msg_initRequest(es_msg_t **ppCtx)
+es_status es_msg_init(es_msg_t **ppCtx)
 {
    struct es_msg_s *_pCtx = (struct es_msg_s *) malloc(sizeof(struct es_msg_s));
    if (_pCtx == (struct es_msg_s *)0) {
@@ -66,6 +66,8 @@ es_status es_msg_initRequest(es_msg_t **ppCtx)
 
       /* Set SIP Version */
       osip_message_set_version(_pMsg, osip_strdup("SIP/2.0"));
+
+      osip_message_set_max_forwards(_pMsg, "70");
 
       /* Init VIA header */
       {
@@ -132,98 +134,98 @@ es_status es_msg_initRequest(es_msg_t **ppCtx)
    return ES_OK;
 }
 
-es_status es_msg_initResponse(osip_message_t      **ppRes,
-                              int                 respCode,
-                              osip_message_t      *req)
+es_status es_msg_initResponse(osip_message_t **ppRes, int respCode, osip_message_t *req)
 {
    osip_message_t *_pMsg = NULL;
 
-   {
-      /* Check validity */
-      {
-         if (req->to == NULL) {
-            ESIP_TRACE(ESIP_LOG_ERROR, "empty To in request header");
-            return ES_ERROR_NULLPTR;
-         }
-         if (req->from == NULL) {
-            ESIP_TRACE(ESIP_LOG_ERROR, "empty From in request header");
-            return ES_ERROR_NULLPTR;
-         }
-      }
-
-      /* Create an emty message */
-      if (osip_message_init(&_pMsg) != OSIP_SUCCESS) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         return ES_ERROR_OUTOFRESOURCES;
-      }
-
-      /* Set SIP Version */
-      osip_message_set_version(_pMsg, osip_strdup("SIP/2.0"));
-
-      osip_message_set_max_forwards(_pMsg, "70");
-
-      /* Set status code */
-      if (respCode > 0) {
-         osip_message_set_status_code(_pMsg, respCode);
-         osip_message_set_reason_phrase(_pMsg, osip_strdup(osip_message_get_reason(respCode)));
-      }
-
-      /* Set From header */
-      osip_from_clone(req->from, &_pMsg->from);
-
-      /* Set To header */
-      osip_to_clone(req->to, &_pMsg->to);
-
-      {
-         osip_uri_param_t *tag = NULL;
-         unsigned int random_tag = 0;
-         char str_random[256];
-         osip_to_get_tag(_pMsg->to, &tag);
-         if (tag == NULL) {
-            random_tag = osip_build_random_number();
-            snprintf(str_random, sizeof(str_random), "%d", random_tag);
-            osip_to_set_tag(_pMsg->to, osip_strdup(str_random));
-         }
-      }
-
-      /* Set CSeq header */
-      if (osip_cseq_clone(req->cseq, &_pMsg->cseq) != OSIP_SUCCESS) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(_pMsg);
-         return ES_ERROR_OUTOFRESOURCES;
-      }
-
-      /* Set Call-Id header */
-      if (osip_call_id_clone(req->call_id, &_pMsg->call_id) != OSIP_SUCCESS) {
-         ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-         osip_message_free(_pMsg);
-         return ES_ERROR_OUTOFRESOURCES;
-      }
-
-      /* Handle Via header */
-      {
-         int pos = 0;
-         while (!osip_list_eol(&req->vias, pos)) {
-            osip_via_t * via = NULL;
-            osip_via_t * via2 = NULL;
-
-            via = (osip_via_t *) osip_list_get(&req->vias, pos);
-            if (osip_via_clone(via, &via2) != OSIP_SUCCESS) {
-               ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
-               osip_message_free(_pMsg);
-               return ES_ERROR_OUTOFRESOURCES;
-            }
-            osip_list_add(&(_pMsg->vias), via2, -1);
-            pos++;
-         }
-      }
-
-      /* Set User-Agent header */
-      osip_message_set_user_agent(_pMsg, PACKAGE);
-      osip_message_set_organization(_pMsg, PACKAGE_STRING);
-      osip_message_set_subject(_pMsg, "Testing with " PACKAGE_STRING);
-      osip_message_set_server(_pMsg, PACKAGE_STRING " Server");
+   if (req == (osip_message_t *)0) {
+           return ES_ERROR_OUTOFRESOURCES;
    }
+
+   /* Check validity */
+   {
+           if (req->to == NULL) {
+                   ESIP_TRACE(ESIP_LOG_ERROR, "empty To in request header");
+                   return ES_ERROR_NULLPTR;
+           }
+           if (req->from == NULL) {
+                   ESIP_TRACE(ESIP_LOG_ERROR, "empty From in request header");
+                   return ES_ERROR_NULLPTR;
+           }
+   }
+
+   /* Create an emty message */
+   if (osip_message_init(&_pMsg) != OSIP_SUCCESS) {
+           ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
+           return ES_ERROR_OUTOFRESOURCES;
+   }
+
+   /* Set SIP Version */
+   osip_message_set_version(_pMsg, osip_strdup("SIP/2.0"));
+
+   osip_message_set_max_forwards(_pMsg, "70");
+
+   /* Set status code */
+   if (respCode > 0) {
+           osip_message_set_status_code(_pMsg, respCode);
+           osip_message_set_reason_phrase(_pMsg, osip_strdup(osip_message_get_reason(respCode)));
+   }
+
+   /* Set From header */
+   osip_from_clone(req->from, &_pMsg->from);
+
+   /* Set To header */
+   osip_to_clone(req->to, &_pMsg->to);
+
+   {
+           osip_uri_param_t *tag = NULL;
+           unsigned int random_tag = 0;
+           char str_random[256];
+           osip_to_get_tag(_pMsg->to, &tag);
+           if (tag == NULL) {
+                   random_tag = osip_build_random_number();
+                   snprintf(str_random, sizeof(str_random), "%d", random_tag);
+                   osip_to_set_tag(_pMsg->to, osip_strdup(str_random));
+           }
+   }
+
+   /* Set CSeq header */
+   if (osip_cseq_clone(req->cseq, &_pMsg->cseq) != OSIP_SUCCESS) {
+           ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
+           osip_message_free(_pMsg);
+           return ES_ERROR_OUTOFRESOURCES;
+   }
+
+   /* Set Call-Id header */
+   if (osip_call_id_clone(req->call_id, &_pMsg->call_id) != OSIP_SUCCESS) {
+           ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
+           osip_message_free(_pMsg);
+           return ES_ERROR_OUTOFRESOURCES;
+   }
+
+   /* Handle Via header */
+   {
+           int pos = 0;
+           while (!osip_list_eol(&req->vias, pos)) {
+                   osip_via_t * via = NULL;
+                   osip_via_t * via2 = NULL;
+
+                   via = (osip_via_t *) osip_list_get(&req->vias, pos);
+                   if (osip_via_clone(via, &via2) != OSIP_SUCCESS) {
+                           ESIP_TRACE(ESIP_LOG_ERROR, "Memory error");
+                           osip_message_free(_pMsg);
+                           return ES_ERROR_OUTOFRESOURCES;
+                   }
+                   osip_list_add(&(_pMsg->vias), via2, -1);
+                   pos++;
+           }
+   }
+
+   /* Set User-Agent header */
+   osip_message_set_user_agent(_pMsg, PACKAGE);
+   osip_message_set_organization(_pMsg, PACKAGE_STRING);
+   osip_message_set_subject(_pMsg, "Testing with " PACKAGE_STRING);
+   osip_message_set_server(_pMsg, PACKAGE_STRING " Server");
 
    *ppRes = _pMsg;
    return ES_OK;

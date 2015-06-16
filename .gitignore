@@ -73,6 +73,7 @@ test-driver
 ltmain.sh
 m4
 libtool
+tags
 
 # Object files
 *.o

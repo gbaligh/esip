@@ -39,7 +39,7 @@
 #include "esomsg.h"
 #include "esosip.h"
 
-#define ES_OSIP_MAGIC      0X20140607
+#define ES_OSIP_MAGIC       0x20140607
 
 struct es_osip_s {
    /* Magic */
@@ -69,10 +69,7 @@ struct es_osip_s {
  * @param error
  * @param data
  */
-static void _es_transport_event_cb(es_transport_t    *transp,
-                                   int               event,
-                                   int               error,
-                                   void              *data);
+static void _es_transport_event_cb(es_transport_t *transp, int event, int error, void *data);
 
 /**
  * @brief _es_transport_msg_cb
@@ -83,10 +80,7 @@ static void _es_transport_event_cb(es_transport_t    *transp,
  * @param size
  * @param data
  */
-static void _es_transport_msg_cb(es_transport_t       *transp,
-                                 const char const     *msg,
-                                 const unsigned int   size,
-                                 void                 *data);
+static void _es_transport_msg_cb(es_transport_t *transp, const char const *msg, const unsigned int size, void *data);
 
 /**
  * @brief Set OSip stack callbacks to internal ones
@@ -107,8 +101,7 @@ static es_status _es_osip_wakeup(struct es_osip_s *_ctx);
                         Public functions implementation
  ******************************************************************************/
 
-es_status es_osip_init(es_osip_t          **pCtx,
-                       struct event_base  *base)
+es_status es_osip_init(es_osip_t **pCtx, struct event_base *base)
 {
    es_status ret = ES_OK;
 
@@ -185,7 +178,7 @@ es_status es_osip_init(es_osip_t          **pCtx,
    return ES_OK;
 }
 
-es_status es_osip_start(es_osip_t          *pCtx)
+es_status es_osip_start(es_osip_t *pCtx)
 {
    es_status ret = ES_OK;
 
@@ -262,9 +255,7 @@ es_status es_osip_deinit(es_osip_t *pCtx)
    return ES_OK;
 }
 
-es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
-                            IN const char    *buf,
-                            IN unsigned int  size)
+es_status es_osip_parse_msg(es_osip_t *pCtx, const char *buf, unsigned int size)
 {
    osip_event_t * evt = (osip_event_t *)0;
    struct es_osip_s *_pCtx = (struct es_osip_s *)pCtx;
@@ -396,18 +387,12 @@ es_status es_osip_parse_msg(IN es_osip_t     *pCtx,
                   Internal static functions implementation
  ******************************************************************************/
 
-static void _es_transport_event_cb(es_transport_t     *transp,
-                                   int                event,
-                                   int                error,
-                                   void               *data)
+static void _es_transport_event_cb(es_transport_t *transp, int event, int error, void *data)
 {
    ESIP_TRACE(ESIP_LOG_DEBUG, "Event: %d", event);
 }
 
-static void _es_transport_msg_cb(es_transport_t       *transp,
-                                 const char const     *msg,
-                                 const unsigned int   size,
-                                 void                 *data)
+static void _es_transport_msg_cb(es_transport_t *transp, const char const *msg, const unsigned int size, void *data)
 {
    struct es_osip_s * ctx = (struct es_osip_s *)data;
 
@@ -428,9 +413,7 @@ static void _es_transport_msg_cb(es_transport_t       *transp,
    }
 }
 
-static void _es_osip_loop(evutil_socket_t    fd,
-                          short              event,
-                          void               *arg)
+static void _es_osip_loop(evutil_socket_t fd, short event, void *arg)
 {
    struct es_osip_s * _pCtx = (struct es_osip_s *)arg;
    /* Check Context */
@@ -496,7 +479,7 @@ static void _es_osip_loop(evutil_socket_t    fd,
    }
 }
 
-static es_status _es_osip_wakeup(struct es_osip_s * pCtx)
+static es_status _es_osip_wakeup(struct es_osip_s *pCtx)
 {
    struct event * _pEvSip = (struct event *)0;
 
@@ -536,11 +519,7 @@ static es_status _es_osip_wakeup(struct es_osip_s * pCtx)
    return ES_OK;
 }
 
-static int _es_internal_send_msg_cb(osip_transaction_t   *tr,
-                                    osip_message_t       *msg,
-                                    char                 *addr,
-                                    int                  port,
-                                    int                  socket)
+static int _es_internal_send_msg_cb(osip_transaction_t *tr, osip_message_t *msg, char *addr, int port, int socket)
 {
    char * buf = NULL;
    size_t buf_len = 0;
@@ -568,15 +547,12 @@ static int _es_internal_send_msg_cb(osip_transaction_t   *tr,
    return OSIP_SUCCESS;
 }
 
-static void _es_internal_transport_error_cb(int                   type,
-                                            osip_transaction_t    *tr,
-                                            int                   error)
+static void _es_internal_transport_error_cb(int type, osip_transaction_t *tr, int error)
 {
    ESIP_TRACE(ESIP_LOG_INFO,"Error Transport for Transaction %p type %d, error %d", tr, type, error);
 }
 
-static void _es_internal_kill_transaction_cb(int                  type,
-                                             osip_transaction_t   *tr)
+static void _es_internal_kill_transaction_cb(int type, osip_transaction_t *tr)
 {
    struct es_osip_s *_pCtx = NULL;
    ESIP_TRACE(ESIP_LOG_INFO,"Removing Transaction %p", tr);
@@ -592,9 +568,7 @@ static void _es_internal_kill_transaction_cb(int                  type,
    }
 }
 
-static void _es_internal_message_cb(int                     type,
-                                    osip_transaction_t      *tr,
-                                    osip_message_t          *msg)
+static void _es_internal_message_cb(int type, osip_transaction_t *tr, osip_message_t *msg)
 {
    struct es_osip_s * _pCtx = (struct es_osip_s *)0;
    osip_message_t *_pResp = (osip_message_t *)0;
@@ -717,7 +691,7 @@ static void _es_internal_message_cb(int                     type,
    }
 }
 
-static es_status _es_osip_set_internal_callbacks(struct es_osip_s * ctx)
+static es_status _es_osip_set_internal_callbacks(struct es_osip_s *ctx)
 {
    osip_t * osip = (osip_t *)0;
    int i = 0;

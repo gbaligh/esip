@@ -34,8 +34,11 @@
 #include "log.h"
 
 #define ES_LOG_COLOR_RED_BEGIN    "\x1b[31m"
+
 #define ES_LOG_COLOR_YELLOW_BEGIN "\x1b[33m"
+
 #define ES_LOG_COLOR_GREEN_BEGIN  "\x1b[32m"
+
 #define ES_LOG_COLOR_END          "\x1b[;m"
 
 #ifdef PACKAGE_NAME
@@ -45,24 +48,24 @@
 #endif
 
 struct es_log_s {
-   const char * module;
+   const char *module;
    uint32_t loglevel;
    uint32_t flags;
-   FILE * f;
+   FILE *f;
 
-   es_log_print_cb * cb;
+   es_log_print_cb *cb;
    void * cb_arg;
 };
 
-static const char const * log_level_str[] = {
+static const char const *log_level_str[] = {
    "EMERGENCY",
-   "ALERT",
-   "CRITIC",
-   "ERROR",
-   "WARNING",
-   "NOTICE",
-   "INFO",
-   "DEBUG"
+   "ALERT    ",
+   "CRITIC   ",
+   "ERROR    ",
+   "WARNING  ",
+   "NOTICE   ",
+   "INFO     ",
+   "DEBUG    "
 };
 
 es_log_t es_log_default_handler = {
@@ -74,7 +77,7 @@ es_log_t es_log_default_handler = {
    NULL
 };
 
-es_status es_log_init(es_log_t ** handler)
+es_status es_log_init(es_log_t **handler)
 {
    struct es_log_s * h = (struct es_log_s *) malloc(sizeof(struct es_log_s));
    if (h == NULL) {
@@ -91,7 +94,7 @@ es_status es_log_init(es_log_t ** handler)
    return ES_OK;
 }
 
-es_status es_log_destroy(es_log_t * handler)
+es_status es_log_destroy(es_log_t *handler)
 {
    if (handler == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "bad arguments");
@@ -102,7 +105,7 @@ es_status es_log_destroy(es_log_t * handler)
    return ES_OK;
 }
 
-es_status es_log_set_loglevel(es_log_t * handler, unsigned int level)
+es_status es_log_set_loglevel(es_log_t *handler, unsigned int level)
 {
    if (handler == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "bad arguments");
@@ -113,7 +116,7 @@ es_status es_log_set_loglevel(es_log_t * handler, unsigned int level)
    return ES_OK;
 }
 
-es_status es_log_get_loglevel(es_log_t * handler, unsigned int * level)
+es_status es_log_get_loglevel(es_log_t *handler, unsigned int *level)
 {
    if (handler == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "bad arguments");
@@ -124,7 +127,7 @@ es_status es_log_get_loglevel(es_log_t * handler, unsigned int * level)
    return ES_OK;
 }
 
-es_status es_log_set_print_cb(es_log_t * handler, es_log_print_cb cb, void * arg)
+es_status es_log_set_print_cb(es_log_t *handler, es_log_print_cb cb, void *arg)
 {
    if (handler == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "bad arguments");
@@ -137,7 +140,7 @@ es_status es_log_set_print_cb(es_log_t * handler, es_log_print_cb cb, void * arg
    return ES_OK;
 }
 
-static void es_log_vprintf(es_log_t * handler, const char *function, const int line, const unsigned int level, const char const * fmt, va_list ap)
+static void es_log_vprintf(es_log_t *handler, const char *function, const int line, const unsigned int level, const char const *fmt, va_list ap)
 {
    if (handler == NULL) {
       ESIP_TRACE(ESIP_LOG_ERROR, "bad arguments");
@@ -180,7 +183,7 @@ static void es_log_vprintf(es_log_t * handler, const char *function, const int l
    fflush(stderr);
 }
 
-void es_log_trace(es_log_t * handler, const char *func, const int line, unsigned int level, const char const * format, ...)
+void es_log_trace(es_log_t * handler, const char *func, const int line, unsigned int level, const char const *format, ...)
 {
    va_list ap;
 
@@ -193,46 +196,47 @@ void es_log_trace(es_log_t * handler, const char *func, const int line, unsigned
    va_end(ap);
 }
 
-void es_log_nop(es_log_t * handler, const char const * format, ...)
+void es_log_nop(es_log_t *handler, const char const *format, ...)
 {
+  ESIP_TRACE(ESIP_LOG_ERROR, "Not implemented");
 }
 
-void es_log_emerg(es_log_t * handler, const char const * format, ...)
+void es_log_emerg(es_log_t *handler, const char const *format, ...)
 {
-
+  ESIP_TRACE(ESIP_LOG_ERROR, "Not implemented");
 }
 
-void es_log_alert(es_log_t * handler, const char const * format, ...)
+void es_log_alert(es_log_t *handler, const char const *format, ...)
 {
-
+  ESIP_TRACE(ESIP_LOG_ERROR, "Not implemented");
 }
 
-void es_log_crit(es_log_t * handler, const char const * format, ...)
+void es_log_crit(es_log_t *handler, const char const *format, ...)
 {
-
+  ESIP_TRACE(ESIP_LOG_ERROR, "Not implemented");
 }
 
-void es_log_error(es_log_t * handler, const char const * format, ...)
+void es_log_error(es_log_t *handler, const char const *format, ...)
 {
-
+  ESIP_TRACE(ESIP_LOG_ERROR, "Not implemented");
 }
 
-void es_log_warning(es_log_t * handler, const char const * format, ...)
+void es_log_warning(es_log_t *handler, const char const *format, ...)
 {
-
+  ESIP_TRACE(ESIP_LOG_ERROR, "Not implemented");
 }
 
-void es_log_notice(es_log_t * handler, const char const * format, ...)
+void es_log_notice(es_log_t *handler, const char const *format, ...)
 {
-
+  ESIP_TRACE(ESIP_LOG_ERROR, "Not implemented");
 }
 
-void es_log_info(es_log_t * handler, const char const * format, ...)
+void es_log_info(es_log_t *handler, const char const *format, ...)
 {
-
+  ESIP_TRACE(ESIP_LOG_ERROR, "Not implemented");
 }
 
-void es_log_debug(es_log_t * handler, const char const * format, ...)
+void es_log_debug(es_log_t *handler, const char const *format, ...)
 {
-
+  ESIP_TRACE(ESIP_LOG_ERROR, "Not implemented");
 }

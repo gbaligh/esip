@@ -40,7 +40,7 @@ typedef struct app_s {
    struct event         *evsig;          //!< LibEvent Signal
    es_log_t             *logger;         //!< Logger handler
    es_osip_t            *osipCtx;        //!< OSip stack context
-   es_cli_t             *cliCtx;         //!<
+   es_cli_t             *cliCtx;         //!< Telnet Interface
 } app_t;
 
 #define ESIP_SHORT_OPT_VERSION_CHAR    "v"

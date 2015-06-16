@@ -36,9 +36,10 @@
 
 #include "estransport.h"
 
-#define ES_TRANSPORT_MAGIC      0X20140921
+#define ES_TRANSPORT_MAGIC            0x20140921
 
 #define ES_TRANSPORT_DEFAULT_PORT     5060
+
 #define ES_TRANSPORT_MAX_BUFFER_SIZE  2048 //Baby jumbo frame max frame size
 
 struct es_transport_s {
@@ -53,23 +54,17 @@ struct es_transport_s {
 
 /**
  * @brief Internal transport event handler
- * @return void
  */
-static void _es_transport_ev(evutil_socket_t fd,
-                             short event,
-                             void * arg);
+static void _es_transport_ev(evutil_socket_t fd, short event, void *arg);
 
 /**
  * @brief Bind a socket
  * @return ES_OK on success
  * @note Only IPv4 supported
  */
-static es_status _es_bind_socket(int sock,
-                                 const char * ipv4addr,
-                                 const unsigned int port);
+static es_status _es_bind_socket(int sock, const char *ipv4addr, const unsigned int port);
 
-es_status es_transport_init(es_transport_t  **pCtx,
-                            struct event_base  *pBase)
+es_status es_transport_init(es_transport_t **pCtx, struct event_base *pBase)
 {
    struct es_transport_s * _pCtx = NULL;
 
@@ -103,6 +98,11 @@ es_status es_transport_init(es_transport_t  **pCtx,
    return ES_OK;
 }
 
+/**
+ * @brief
+ * @param pCtx
+ * @return
+ */
 es_status es_transport_destroy(es_transport_t *pCtx)
 {
    struct es_transport_s * _pCtx = (struct es_transport_s *) pCtx;
@@ -187,8 +187,7 @@ es_status es_transport_stop(es_transport_t *pCtx)
    return ES_OK;
 }
 
-es_status es_transport_set_callbacks(es_transport_t * pCtx,
-                                     struct es_transport_callbacks_s * pCbCtx)
+es_status es_transport_set_callbacks(es_transport_t *pCtx, struct es_transport_callbacks_s *pCbCtx)
 {
    struct es_transport_s * _pCtx = (struct es_transport_s *)pCtx;
 
@@ -209,8 +208,7 @@ es_status es_transport_set_callbacks(es_transport_t * pCtx,
    return ES_OK;
 }
 
-es_status es_transport_get_udp_socket(es_transport_t *pCtx,
-                                      int    *fd)
+es_status es_transport_get_udp_socket(es_transport_t *pCtx, int *fd)
 {
    struct es_transport_s * _pCtx = (struct es_transport_s *)pCtx;
 
@@ -232,11 +230,7 @@ es_status es_transport_get_udp_socket(es_transport_t *pCtx,
    return ES_ERROR_UNINITIALIZED;
 }
 
-es_status es_transport_send(es_transport_t *pCtx,
-                            char * ip,
-                            int port,
-                            const char * msg,
-                            size_t size)
+es_status es_transport_send(es_transport_t *pCtx, char *ip, int port, const char *msg, size_t size)
 {
    struct sockaddr_in saddr;
    struct es_transport_s *_pCtx = (struct es_transport_s *)pCtx;
@@ -260,9 +254,7 @@ es_status es_transport_send(es_transport_t *pCtx,
    return ES_OK;
 }
 
-static es_status _es_bind_socket(int sock,
-                                 const char * ipv4addr,
-                                 const unsigned int port)
+static es_status _es_bind_socket(int sock, const char *ipv4addr, const unsigned int port)
 {
    struct sockaddr_in addr;
 
@@ -279,9 +271,7 @@ static es_status _es_bind_socket(int sock,
    return ES_OK;
 }
 
-static void _es_transport_ev(evutil_socket_t fd,
-                             short event,
-                             void * arg)
+static void _es_transport_ev(evutil_socket_t fd, short event, void *arg)
 {
    struct es_transport_s * _pCtx = (struct es_transport_s *)arg;
 
@@ -320,3 +310,4 @@ static void _es_transport_ev(evutil_socket_t fd,
       }
    }
 }
+// vim: ts=2:sw=2
