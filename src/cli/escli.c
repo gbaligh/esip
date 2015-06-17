@@ -29,6 +29,10 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+
 #include <event2/event.h>
 #include <event2/listener.h>
 #include <event2/bufferevent.h>
@@ -41,7 +45,7 @@
 
 #include "escli.h"
 
-#define ES_CLI_MAGIC          0X20140917
+#define ES_CLI_MAGIC          0x20140917
 
 #define ES_CLI_BANNER_STR     "######################### " PACKAGE_NAME " commands line #################################"
 
@@ -147,6 +151,14 @@ static void _es_evconnlistener_cb(struct evconnlistener *pListner, evutil_socket
       return;
    }
 
+	{
+		if (pSock->sa_family == AF_INET) {
+			ESIP_TRACE(ESIP_LOG_INFO, "new CLI connection from %s:%d",
+					inet_ntoa(((struct sockaddr_in *)pSock)->sin_addr),
+					ntohs(((struct sockaddr_in *)pSock)->sin_port));
+		}
+	}
+
    /* TODO: stop listner for this connection and start cli_loop in another thread */
    {
       pthread_t threadNum;
@@ -205,7 +217,7 @@ static void _es_accept_error_cb(struct evconnlistener *pListener, void *pCtx)
       return;
    }
 
-    ESIP_TRACE(ESIP_LOG_ERROR, "Got an error %d (%s) on the listener. "
+   ESIP_TRACE(ESIP_LOG_ERROR, "Got an error %d (%s) on the listener. "
                "Shutting down.\n", err, evutil_socket_error_to_string(err));
 }
 

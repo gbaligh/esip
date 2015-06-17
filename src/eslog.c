@@ -59,13 +59,13 @@ struct es_log_s {
 
 static const char const *log_level_str[] = {
    "EMERGENCY",
-   "ALERT    ",
-   "CRITIC   ",
-   "ERROR    ",
-   "WARNING  ",
-   "NOTICE   ",
-   "INFO     ",
-   "DEBUG    "
+   "ALERT",
+   "CRITIC",
+   "ERROR",
+   "WARNING",
+   "NOTICE",
+   "INFO",
+   "DEBUG"
 };
 
 es_log_t es_log_default_handler = {
@@ -171,7 +171,7 @@ static void es_log_vprintf(es_log_t *handler, const char *function, const int li
       break;
    }
 
-   fprintf(stderr, "[%s] [%s] ", handler->module, log_level_str[level]);
+   fprintf(stderr, "[%s][%s]\t", handler->module, log_level_str[level]);
 
    if (level == ESIP_LOG_DEBUG) {
       fprintf(stderr, "%s(%d): ", function, line);

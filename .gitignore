@@ -20,6 +20,12 @@ $RECYCLE.BIN/
 # Windows executable
 *.exe
 
+# Linux 
+esip
+clitest
+test
+udpclient
+
 # Folder
 .deps
 autom4te.cache
