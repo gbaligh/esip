@@ -459,6 +459,8 @@ static void _es_osip_loop(evutil_socket_t fd, short event, void *arg)
          ESIP_TRACE(ESIP_LOG_ERROR,"== NIST failed");
       }
 
+      /* TODO: For timer OSIP event we must found an other methode to wake up */
+
       /* INVITE Client Transation Timer Event Fifo list */
       ESIP_TRACE(ESIP_LOG_DEBUG, "Check pending TIMER-ICT event...");
       osip_timers_ict_execute(_pCtx->osip);
